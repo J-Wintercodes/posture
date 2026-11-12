@@ -34,6 +34,7 @@ struct ProfileSheet: View {
                 }
                 .padding(.top, 22)
 
+                nameSection(settings)
                 coachSection(settings)
                 sensitivitySection(settings)
                 toleranceSection(settings)
@@ -153,6 +154,25 @@ struct ProfileSheet: View {
                     .tint(Theme.mint)
                 }
                 voiceRows(settings)
+            }
+        }
+    }
+
+    // MARK: Name
+
+    private func nameSection(_ settings: SettingsStore) -> some View {
+        Card {
+            HStack(spacing: 12) {
+                Text("Your name")
+                    .font(.ui(15, .medium))
+                    .foregroundStyle(Theme.text)
+                TextField("For the greeting", text: settings.binding(\.userName))
+                    .font(.ui(15))
+                    .foregroundStyle(Theme.text)
+                    .multilineTextAlignment(.trailing)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
             }
         }
     }

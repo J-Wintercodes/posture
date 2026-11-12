@@ -4,6 +4,7 @@ import UIKit
 struct HomeView: View {
     @Environment(AppModel.self) private var app
     @State private var soonMessage: String? = nil
+    @State private var nameDraft = ""
 
     var body: some View {
         let today = app.store.summary(on: Date())
@@ -11,8 +12,13 @@ struct HomeView: View {
         TabScroll {
             ScreenHeader(eyebrow: Fmt.headerDate(Date()), title: greeting)
             hero(today: today)
-            if showsPainCard {
-                painCard
+            Group {
+                if showsNameCard {
+                    nameCard
+                }
+                if showsPainCard {
+                    painCard
+                }
             }
             nowCard
             actionCard
@@ -35,10 +41,60 @@ struct HomeView: View {
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
+        let base: String
         switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<18: return "Good afternoon"
-        default: return "Good evening"
+        case 5..<12: base = "Good morning"
+        case 12..<18: base = "Good afternoon"
+        default: base = "Good evening"
+        }
+        if let name = app.settings.value.greetingName {
+            return "\(base), \(name)"
+        }
+        return base
+    }
+
+    // MARK: Name
+
+    /// Asked once, for people who set the app up before it asked.
+    private var showsNameCard: Bool {
+        let config = app.settings.value
+        return config.greetingName == nil && !config.askedForName
+    }
+
+    private var nameCard: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionLabel("One question", color: Theme.mint)
+                Text("What should I call you?")
+                    .font(.serif(25))
+                    .foregroundStyle(Theme.text)
+                TextField("Your first name", text: $nameDraft)
+                    .font(.ui(17))
+                    .foregroundStyle(Theme.text)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .onSubmit { saveName() }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(Theme.cardRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                PillButton(title: "Save", icon: "checkmark") { saveName() }
+                Button("Not now") {
+                    app.settings.update { $0.askedForName = true }
+                }
+                .font(.ui(14, .medium))
+                .foregroundStyle(Theme.textDim)
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private func saveName() {
+        let name = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        app.settings.update { value in
+            value.userName = name
+            value.askedForName = true
         }
     }
 

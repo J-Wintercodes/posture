@@ -198,7 +198,17 @@ enum ArrivalAction: String, Codable, CaseIterable, Identifiable {
 
 struct UserSettings: Codable {
     var onboardingDone = false
+    /// What the user wants to be called. Empty until they say.
+    var userName = ""
+    /// The name question was shown and answered or waved away.
+    var askedForName = false
     var useCase: UseCase = .desk
+
+    /// The name without stray spaces, nil when there is none.
+    var greetingName: String? {
+        let trimmed = userName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
     var places: [FocusPlace] = []
     var arrivalAction: ArrivalAction = .reminders
     var minBatteryForAutoStart = 0.2
@@ -243,6 +253,7 @@ struct UserSettings: Codable {
         case baseline, seenLockHint, checkInMinutes, calendarEnabled
         case libraryKeywords, homeKeywords, gymKeywords = "gymTitleKeywords"
         case painCheckEnabled, bedMinutes, homeSuggestionsEnabled, sensitivity
+        case userName, askedForName
     }
 }
 
@@ -275,6 +286,8 @@ extension UserSettings {
         if let v = try? c.decodeIfPresent(Int.self, forKey: .bedMinutes) { bedMinutes = v }
         if let v = try? c.decodeIfPresent(Bool.self, forKey: .homeSuggestionsEnabled) { homeSuggestionsEnabled = v }
         if let v = try? c.decodeIfPresent(Sensitivity.self, forKey: .sensitivity) { sensitivity = v }
+        if let v = try? c.decodeIfPresent(String.self, forKey: .userName) { userName = v }
+        if let v = try? c.decodeIfPresent(Bool.self, forKey: .askedForName) { askedForName = v }
 
         // Builds before the arrival picker had a plain on/off switch. Keep
         // an "off" as "nothing starts on its own".

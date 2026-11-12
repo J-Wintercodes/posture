@@ -68,7 +68,10 @@ struct OnboardingFlow: View {
     }
 
     private func finish() {
-        app.settings.update { $0.onboardingDone = true }
+        app.settings.update { value in
+            value.onboardingDone = true
+            value.askedForName = true
+        }
         app.power.sync(places: app.settings.value.places)
         app.settingsChanged()
     }
@@ -113,9 +116,29 @@ private struct UseCaseStep: View {
         let current = app.settings.value.useCase
         StepPage(
             eyebrow: "Step 1 of 4",
-            title: "When does your posture suffer most?",
-            subtitle: "This sets what the coach watches first. You can change it later."
+            title: "Hello. What should I call you?",
+            subtitle: "The app greets you by name. Everything stays on your phone."
         ) {
+            TextField("Your first name", text: app.settings.binding(\.userName))
+                .font(.ui(17))
+                .foregroundStyle(Theme.text)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.stroke, lineWidth: 1))
+            Text("When does your posture suffer most?")
+                .font(.serif(24))
+                .foregroundStyle(Theme.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 14)
+            Text("This sets what the coach watches first. You can change it later.")
+                .font(.ui(14))
+                .foregroundStyle(Theme.textDim)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 4)
             ForEach(UseCase.allCases) { option in
                 let isSelected = option == current
                 Button {

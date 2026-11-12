@@ -210,8 +210,10 @@ struct ScreenHeader: View {
                 Text(title)
                     .font(.serif(38))
                     .foregroundStyle(Theme.text)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
             }
-            Spacer()
+            Spacer(minLength: 12)
             ProfileButton { app.showProfile = true }
         }
         .padding(.top, 8)
