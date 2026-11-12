@@ -149,11 +149,16 @@ struct InsightsView: View {
         // Rows 0...2 are more than 7.5° forward of the baseline.
         let forward = grid.prefix(ZoneGrid.side * 3).reduce(0, +)
         let share = Int((forward / total * 100).rounded())
-        let left = stride(from: 0, to: grid.count, by: ZoneGrid.side).reduce(0.0) { sum, start in
-            sum + grid[start..<(start + 3)].reduce(0, +)
-        }
-        let right = stride(from: 0, to: grid.count, by: ZoneGrid.side).reduce(0.0) { sum, start in
-            sum + grid[(start + 5)..<(start + 8)].reduce(0, +)
+        // Columns 0...2 lean left, columns 5...7 lean right.
+        var left = 0.0
+        var right = 0.0
+        for (index, seconds) in grid.enumerated() {
+            let column = index % ZoneGrid.side
+            if column < 3 {
+                left += seconds
+            } else if column > 4 {
+                right += seconds
+            }
         }
         var line = "\(share)% of your tracked time was spent tilted forward."
         if left > total * 0.25, left > right * 1.6 {

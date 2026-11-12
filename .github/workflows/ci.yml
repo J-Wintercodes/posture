@@ -6,7 +6,7 @@ on:
 
 jobs:
   ios:
-    runs-on: macos-15
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
@@ -15,8 +15,12 @@ jobs:
         run: xcodegen generate
       - name: Build and run unit tests
         run: |
+          # Simulator names change with every Xcode release, so take the
+          # first iPhone the runner actually has.
+          UDID=$(xcrun simctl list devices available | grep -m1 'iPhone' | grep -oE '[0-9A-F]{8}-[0-9A-F-]{27}')
+          echo "Using simulator $UDID"
           xcodebuild test \
             -project Posture.xcodeproj \
             -scheme Posture \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "id=$UDID" \
             CODE_SIGNING_ALLOWED=NO
