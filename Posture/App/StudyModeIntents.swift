@@ -7,7 +7,10 @@ import AppIntents
 // the answer.
 //
 // iOS requires the app's name in a phrase that works out of the box, so
-// "Mach Lernmodus an in Posture" works right away. For the bare sentence
+// "Mach Lernmodus an in Posture" works right away. The phrases are German
+// only, and Siri must be set to German: project.yml marks German as the
+// app's base language, because Siri ignores phrases whose language does not
+// match its own. For the bare sentence
 // "Hey Siri, mach Lernmodus an", create a shortcut with that name in the
 // Shortcuts app and give it the action "Lernmodus starten".
 
@@ -40,7 +43,8 @@ struct PostureShortcuts: AppShortcutsProvider {
             phrases: [
                 "Mach Lernmodus an in \(.applicationName)",
                 "Lernmodus an in \(.applicationName)",
-                "Start study mode in \(.applicationName)"
+                "Starte Lernmodus in \(.applicationName)",
+                "\(.applicationName) Lernmodus starten"
             ],
             shortTitle: "Lernmodus an",
             systemImageName: "book.fill"
@@ -50,7 +54,8 @@ struct PostureShortcuts: AppShortcutsProvider {
             phrases: [
                 "Mach Lernmodus aus in \(.applicationName)",
                 "Lernmodus aus in \(.applicationName)",
-                "Stop study mode in \(.applicationName)"
+                "Beende Lernmodus in \(.applicationName)",
+                "\(.applicationName) Lernmodus beenden"
             ],
             shortTitle: "Lernmodus aus",
             systemImageName: "book.closed.fill"

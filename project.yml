@@ -4,6 +4,10 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
+  # The Siri phrases in StudyModeIntents.swift are German. Siri only listens
+  # for them when the app's base language matches Siri's language, so the
+  # project is marked as German rather than the default English.
+  developmentLanguage: de
 settings:
   base:
     SWIFT_VERSION: "5.0"
