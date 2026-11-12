@@ -1,0 +1,49 @@
+name: Posture
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Posture:
+    type: application
+    platform: iOS
+    sources:
+      - Posture
+    info:
+      path: Posture/Info.plist
+      properties:
+        CFBundleDisplayName: Posture
+        UILaunchScreen: {}
+        UIUserInterfaceStyle: Dark
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIBackgroundModes:
+          - audio
+        NSMotionUsageDescription: Posture reads head motion from your AirPods to notice when you start to slouch.
+        NSLocationWhenInUseUsageDescription: Posture uses your location to save focus places such as your library or desk.
+        NSLocationAlwaysAndWhenInUseUsageDescription: Posture starts a quiet session automatically when you arrive at one of your focus places.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.posture
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_PREVIEWS: YES
+    scheme:
+      testTargets:
+        - PostureTests
+  PostureTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - PostureTests
+    dependencies:
+      - target: Posture
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.posture.tests

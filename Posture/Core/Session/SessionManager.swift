@@ -1,0 +1,284 @@
+import Foundation
+import Observation
+
+/// What the live screen draws. Published at most ~12 times a second.
+struct LiveSnapshot: Equatable {
+    var pitch = 0.0
+    var roll = 0.0
+    var score = 100
+    var zone: PostureZone = .aligned
+    var context: PostureContext = .settling
+    var load = 0.0
+}
+
+/// Owns a tracking session from start to end: feeds motion frames through
+/// the engine, keeps the journal entry, hands coach cues to Theo and pauses
+/// everything when the battery guard says so.
+@MainActor
+@Observable
+final class SessionManager {
+    enum PauseReason: Equatable {
+        case lowPower, headphonesOut
+    }
+
+    enum Phase: Equatable {
+        case idle
+        case live
+        case paused(PauseReason)
+    }
+
+    enum Trigger: Equatable {
+        case manual
+        case auto(placeName: String)
+    }
+
+    private(set) var phase: Phase = .idle
+    private(set) var snapshot = LiveSnapshot()
+    private(set) var elapsed: TimeInterval = 0
+    private(set) var breakSuggestion: BreakReason?
+    private(set) var uprightSetAt: Date?
+    private(set) var isAutoStarted = false
+
+    var isRunning: Bool { phase != .idle }
+
+    @ObservationIgnored private let settings: SettingsStore
+    @ObservationIgnored private let store: SessionStore
+    @ObservationIgnored private let headphones: HeadphoneMotionService
+    @ObservationIgnored private let phone: PhoneContextService
+    @ObservationIgnored private let power: LocationAndPowerGuard
+    @ObservationIgnored private let coach: AudioCoachService
+
+    @ObservationIgnored private var engine = PostureEngine()
+    @ObservationIgnored private var fatigue = FatigueMonitor()
+    @ObservationIgnored private var draft: SessionDraft?
+    @ObservationIgnored private var ticker: Timer?
+    @ObservationIgnored private var listener: UUID?
+    @ObservationIgnored private var holdsStream = false
+    @ObservationIgnored private var lastFrameAt = Date()
+    @ObservationIgnored private var lastPublishT = 0.0
+    @ObservationIgnored private var pausedAt: Date?
+    @ObservationIgnored private var minuteOfDay = 0
+    @ObservationIgnored private var secondsSinceCheckpoint = 0
+
+    /// A paused session is closed after this long so nothing idles forever.
+    private let maxPause: TimeInterval = 15 * 60
+
+    init(settings: SettingsStore, store: SessionStore, headphones: HeadphoneMotionService,
+         phone: PhoneContextService, power: LocationAndPowerGuard, coach: AudioCoachService) {
+        self.settings = settings
+        self.store = store
+        self.headphones = headphones
+        self.phone = phone
+        self.power = power
+        self.coach = coach
+    }
+
+    // MARK: Start / end
+
+    @discardableResult
+    func start(trigger: Trigger = .manual) -> Bool {
+        guard phase == .idle else { return false }
+        let config = settings.value
+        coach.mode = config.feedback
+        coach.language = config.coachLanguage
+        do {
+            try coach.beginSession()
+        } catch {
+            // Without the audio session the app cannot stay alive in the
+            // background. A manual session may still run in the foreground.
+            if trigger != .manual { return false }
+        }
+
+        engine = PostureEngine(tuning: config.tuning, anchor: config.baseline)
+        fatigue = FatigueMonitor()
+        var placeName: String?
+        if case .auto(let name) = trigger { placeName = name }
+        isAutoStarted = placeName != nil
+        draft = SessionDraft(start: Date(), placeName: placeName, autoStarted: isAutoStarted)
+        snapshot = LiveSnapshot()
+        elapsed = 0
+        breakSuggestion = nil
+        uprightSetAt = nil
+        lastFrameAt = Date()
+        minuteOfDay = Self.minuteOfDay(Date())
+        secondsSinceCheckpoint = 0
+
+        listener = headphones.addListener { [weak self] sample in self?.ingest(sample) }
+        holdStream(true)
+        phone.start()
+        phase = .live
+
+        ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.tick() }
+        }
+        coach.deliver(.sessionStarted(auto: isAutoStarted))
+        if power.isLowPowerMode { pause(.lowPower) }
+        return true
+    }
+
+    func end() {
+        guard phase != .idle else { return }
+        ticker?.invalidate()
+        ticker = nil
+        if let listener { headphones.removeListener(listener) }
+        listener = nil
+        holdStream(false)
+        phone.stop()
+
+        if let draft {
+            if draft.scored >= 20 {
+                store.upsert(draft.record(end: Date()))
+            } else {
+                store.remove(id: draft.id)
+            }
+        }
+        draft = nil
+        coach.deliver(.sessionEnded)
+        coach.endSession()
+        phase = .idle
+        breakSuggestion = nil
+    }
+
+    // MARK: User actions
+
+    /// "Upright set": the current sitting position becomes the zero point.
+    func setUpright() {
+        engine.setUprightNow()
+        if let anchor = engine.anchor {
+            settings.update { $0.baseline = anchor }
+        }
+        uprightSetAt = Date()
+        coach.deliver(.uprightSet)
+    }
+
+    func dismissBreakSuggestion() {
+        breakSuggestion = nil
+    }
+
+    /// Keeps the coach quiet while a guided reset is on screen.
+    func holdForExercise(seconds: Double) {
+        engine.hold(seconds: seconds)
+        breakSuggestion = nil
+    }
+
+    // MARK: Battery guard
+
+    /// Called whenever Low Power Mode or the battery state changes.
+    func powerStateChanged() {
+        switch phase {
+        case .live where power.isLowPowerMode:
+            pause(.lowPower)
+        case .paused(.lowPower) where !power.isLowPowerMode:
+            resume()
+        default:
+            break
+        }
+    }
+
+    private func pause(_ reason: PauseReason) {
+        guard phase == .live else { return }
+        phase = .paused(reason)
+        pausedAt = Date()
+        if reason == .lowPower {
+            // Stop every sensor. Only the silent audio session stays up so
+            // the session can pick up again when Low Power Mode ends.
+            holdStream(false)
+            phone.stop()
+            coach.deliver(.pausedLowPower)
+        }
+    }
+
+    private func resume() {
+        guard case .paused(let reason) = phase else { return }
+        phase = .live
+        pausedAt = nil
+        lastFrameAt = Date()
+        if reason == .lowPower {
+            holdStream(true)
+            phone.start()
+        }
+        coach.deliver(.resumed)
+    }
+
+    private func holdStream(_ wanted: Bool) {
+        guard wanted != holdsStream else { return }
+        holdsStream = wanted
+        if wanted {
+            headphones.acquire()
+        } else {
+            headphones.release()
+        }
+    }
+
+    // MARK: Frames
+
+    private func ingest(_ sample: HeadSample) {
+        if phase == .paused(.headphonesOut) { resume() }
+        guard phase == .live else { return }
+        lastFrameAt = Date()
+
+        let reading = engine.ingest(sample, phone: phone.context)
+        draft?.accumulate(reading, minuteOfDay: minuteOfDay)
+
+        for event in reading.events {
+            switch event {
+            case .nudge(let kind, let level):
+                draft?.nudges += 1
+                coach.deliver(.nudge(kind, level: level))
+            case .recovered:
+                coach.deliver(.recovered)
+            case .away, .returned, .rebaselined:
+                break
+            }
+        }
+        if let reason = fatigue.ingest(reading) {
+            draft?.breaks += 1
+            breakSuggestion = reason
+            coach.deliver(.breakSuggested(reason))
+        }
+
+        if sample.t - lastPublishT >= 0.08 || sample.t < lastPublishT {
+            lastPublishT = sample.t
+            let next = LiveSnapshot(
+                pitch: reading.pitch,
+                roll: reading.roll,
+                score: Int(reading.score.rounded()),
+                zone: reading.zone,
+                context: reading.context,
+                load: reading.load
+            )
+            if next != snapshot { snapshot = next }
+        }
+    }
+
+    private func tick() {
+        guard let draft else { return }
+        let now = Date()
+        elapsed = now.timeIntervalSince(draft.start)
+        minuteOfDay = Self.minuteOfDay(now)
+        headphones.checkStreamHealth()
+
+        switch phase {
+        case .live:
+            if now.timeIntervalSince(lastFrameAt) > 6 {
+                pause(.headphonesOut)
+            }
+            secondsSinceCheckpoint += 1
+            if secondsSinceCheckpoint >= 30, draft.scored >= 20 {
+                secondsSinceCheckpoint = 0
+                store.upsert(draft.record(end: now))
+            }
+        case .paused:
+            if let pausedAt, now.timeIntervalSince(pausedAt) > maxPause {
+                end()
+            }
+        case .idle:
+            break
+        }
+    }
+
+    private static func minuteOfDay(_ date: Date) -> Int {
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    }
+}

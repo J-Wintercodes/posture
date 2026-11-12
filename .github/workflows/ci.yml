@@ -1,0 +1,22 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build and run unit tests
+        run: |
+          xcodebuild test \
+            -project Posture.xcodeproj \
+            -scheme Posture \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO

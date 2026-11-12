@@ -1,0 +1,212 @@
+import AVFoundation
+import Observation
+
+/// Theo: the audio side of the coach, and the thing that keeps the session
+/// alive while the iPhone is locked.
+///
+/// A running `AVAudioEngine` with a looping silent buffer holds the app in
+/// the background (UIBackgroundModes: audio). The session mixes with other
+/// audio, so the user's music keeps playing and the cues land on top of it.
+/// Chimes are synthesised at runtime, so there are no audio assets to ship.
+@MainActor
+@Observable
+final class AudioCoachService: NSObject {
+    private(set) var isActive = false
+
+    @ObservationIgnored var mode: FeedbackMode = .voice
+    @ObservationIgnored var language: CoachLanguage = .en
+
+    @ObservationIgnored private let engine = AVAudioEngine()
+    @ObservationIgnored private let tones = AVAudioPlayerNode()
+    @ObservationIgnored private let keepAlive = AVAudioPlayerNode()
+    @ObservationIgnored private let speech = AVSpeechSynthesizer()
+    @ObservationIgnored private let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)
+    @ObservationIgnored private var isWired = false
+    @ObservationIgnored private var variant = 0
+    @ObservationIgnored private var observers: [NSObjectProtocol] = []
+
+    // MARK: Lifecycle
+
+    func beginSession() throws {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try session.setActive(true)
+        wireIfNeeded()
+        try startEngine()
+        isActive = true
+
+        if observers.isEmpty {
+            let center = NotificationCenter.default
+            let names: [Notification.Name] = [AVAudioSession.interruptionNotification, .AVAudioEngineConfigurationChange]
+            for name in names {
+                let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    Task { @MainActor in self?.recover() }
+                }
+                observers.append(token)
+            }
+        }
+    }
+
+    func endSession() {
+        guard isActive else { return }
+        isActive = false
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers = []
+        // Let the closing chime ring out before the engine goes down.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2.5))
+            guard let self, !self.isActive else { return }
+            self.speech.stopSpeaking(at: .word)
+            self.keepAlive.stop()
+            self.tones.stop()
+            self.engine.stop()
+            try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        }
+    }
+
+    private func wireIfNeeded() {
+        guard !isWired, let format else { return }
+        engine.attach(tones)
+        engine.attach(keepAlive)
+        engine.connect(tones, to: engine.mainMixerNode, format: format)
+        engine.connect(keepAlive, to: engine.mainMixerNode, format: format)
+        isWired = true
+    }
+
+    private func startEngine() throws {
+        guard isWired, let format else { return }
+        if !engine.isRunning {
+            engine.prepare()
+            try engine.start()
+        }
+        if let silence = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 44_100) {
+            silence.frameLength = 44_100
+            if let channels = silence.floatChannelData {
+                for c in 0..<Int(format.channelCount) {
+                    for i in 0..<Int(silence.frameLength) { channels[c][i] = 0 }
+                }
+            }
+            keepAlive.stop()
+            keepAlive.scheduleBuffer(silence, at: nil, options: .loops)
+            keepAlive.play()
+        }
+        tones.play()
+    }
+
+    /// After a phone call or a route change (AirPods out, AirPods in) the
+    /// engine stops. Bring it back so the session survives.
+    private func recover() {
+        guard isActive else { return }
+        try? AVAudioSession.sharedInstance().setActive(true)
+        try? startEngine()
+    }
+
+    // MARK: Delivery
+
+    func deliver(_ cue: CoachCue) {
+        variant += 1
+        switch mode {
+        case .silent:
+            if let note = CoachScript.notification(for: cue, language: language) {
+                Notifier.post(title: note.title, body: note.body, sound: false)
+            }
+        case .chime:
+            playChime(for: cue)
+        case .voice:
+            playChime(for: cue)
+            if speaks(cue), let line = CoachScript.line(for: cue, language: language, variant: variant) {
+                say(line)
+            }
+        }
+    }
+
+    /// Turning bad is answered by the sound alone. Theo only adds words when
+    /// the slouch is still there at the next reminder.
+    private func speaks(_ cue: CoachCue) -> Bool {
+        if case .nudge(_, let level) = cue { return level > 0 }
+        return true
+    }
+
+    private func say(_ text: String) {
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: language.voiceCode)
+        utterance.rate = 0.46
+        utterance.volume = 0.9
+        utterance.preUtteranceDelay = 0.45
+        speech.speak(utterance)
+    }
+
+    // MARK: Chimes
+
+    private struct Note {
+        var frequency: Double
+        var at: Double
+        var length: Double
+
+        init(_ frequency: Double, _ at: Double, _ length: Double) {
+            self.frequency = frequency
+            self.at = at
+            self.length = length
+        }
+    }
+
+    private func playChime(for cue: CoachCue) {
+        guard isWired, engine.isRunning else { return }
+        let notes: [Note]
+        var gain = 0.2
+        switch cue {
+        case .sessionStarted, .resumed:
+            notes = [Note(523.25, 0, 0.5), Note(659.25, 0.14, 0.5), Note(783.99, 0.28, 0.9)]
+        case .sessionEnded, .pausedLowPower:
+            notes = [Note(783.99, 0, 0.5), Note(659.25, 0.14, 0.5), Note(523.25, 0.28, 0.9)]
+        case .nudge:
+            // Posture turned bad: low and falling, a minor third (F4 to D4).
+            // Clearly "down", but soft enough for a library.
+            notes = [Note(349.23, 0, 0.40), Note(293.66, 0.17, 0.80)]
+            gain = 0.17
+        case .recovered:
+            // Posture is good again: high, short and quiet, a rising fourth
+            // (G5 to C6).
+            notes = [Note(783.99, 0, 0.30), Note(1046.50, 0.11, 0.60)]
+            gain = 0.12
+        case .uprightSet:
+            notes = [Note(659.25, 0, 0.35), Note(880, 0.12, 0.7)]
+        case .breakSuggested:
+            notes = [Note(523.25, 0, 0.6), Note(392, 0.25, 0.6), Note(523.25, 0.5, 1.0)]
+        }
+        if let buffer = render(notes, gain: gain) {
+            tones.scheduleBuffer(buffer, at: nil, options: [])
+            if !tones.isPlaying { tones.play() }
+        }
+    }
+
+    /// Soft bell: a sine with two quiet overtones and an exponential decay.
+    private func render(_ notes: [Note], gain: Double = 0.2) -> AVAudioPCMBuffer? {
+        guard let format else { return nil }
+        let sampleRate = format.sampleRate
+        let total = (notes.map { $0.at + $0.length }.max() ?? 0) + 0.05
+        let frames = AVAudioFrameCount(total * sampleRate)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
+              let channels = buffer.floatChannelData else { return nil }
+        buffer.frameLength = frames
+        let count = Int(frames)
+        var mono = [Float](repeating: 0, count: count)
+        for note in notes {
+            let start = Int(note.at * sampleRate)
+            let length = Int(note.length * sampleRate)
+            for i in 0..<length {
+                let index = start + i
+                if index >= count { break }
+                let t = Double(i) / sampleRate
+                let envelope = min(t / 0.01, 1) * exp(-4.5 * t / note.length)
+                let w = 2 * Double.pi * note.frequency * t
+                let wave = sin(w) + 0.28 * sin(2 * w) + 0.08 * sin(3 * w)
+                mono[index] += Float(gain * envelope * wave)
+            }
+        }
+        for c in 0..<Int(format.channelCount) {
+            for i in 0..<count { channels[c][i] = mono[i] }
+        }
+        return buffer
+    }
+}
