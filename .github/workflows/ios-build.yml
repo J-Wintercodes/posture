@@ -18,12 +18,30 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Unsigned iOS build
-        run: xcodebuild clean build -project Posture.xcodeproj -scheme Posture -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+      # Device build (iphoneos SDK, arm64), not the Simulator. Release, so
+      # the app is one plain executable that sideloading tools can re-sign.
+      - name: Unsigned iOS device build
+        run: xcodebuild clean build -project Posture.xcodeproj -scheme Posture -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload build directory
+      - name: Package .ipa
+        run: |
+          APP="build/Build/Products/Release-iphoneos/Posture.app"
+          test -d "$APP"
+
+          # Fail early if this is not a real-device build.
+          PLATFORM=$(/usr/libexec/PlistBuddy -c "Print :DTPlatformName" "$APP/Info.plist")
+          echo "Platform: $PLATFORM"
+          lipo -info "$APP/Posture"
+          test "$PLATFORM" = "iphoneos"
+
+          mkdir Payload
+          mv "$APP" Payload/
+          zip -qry posture-app.ipa Payload
+          ls -lh posture-app.ipa
+
+      - name: Upload .ipa
         uses: actions/upload-artifact@v4
         with:
           name: posture-app
-          path: ~/Library/Developer/Xcode/DerivedData/Posture-*/Build/Products
+          path: posture-app.ipa
           if-no-files-found: error

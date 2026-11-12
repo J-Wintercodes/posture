@@ -1,8 +1,10 @@
 name: Build and test
 
+# Tests no longer run on every push, to save macOS minutes. They run on
+# pull requests and can be started by hand from the Actions tab.
 on:
-  push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   ios:
