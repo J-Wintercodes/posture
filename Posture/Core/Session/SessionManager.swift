@@ -47,6 +47,7 @@ final class SessionManager {
     @ObservationIgnored private let phone: PhoneContextService
     @ObservationIgnored private let power: LocationAndPowerGuard
     @ObservationIgnored private let coach: AudioCoachService
+    @ObservationIgnored private let lockScreenCard: LiveActivityController
 
     @ObservationIgnored private var engine = PostureEngine()
     @ObservationIgnored private var fatigue = FatigueMonitor()
@@ -71,6 +72,7 @@ final class SessionManager {
         self.phone = phone
         self.power = power
         self.coach = coach
+        self.lockScreenCard = LiveActivityController()
     }
 
     // MARK: Start / end
@@ -81,6 +83,7 @@ final class SessionManager {
         let config = settings.value
         coach.mode = config.feedback
         coach.language = config.coachLanguage
+        coach.voiceID = config.coachVoiceID
         do {
             try coach.beginSession()
         } catch {
@@ -113,6 +116,7 @@ final class SessionManager {
         }
         coach.deliver(.sessionStarted(auto: isAutoStarted))
         if power.isLowPowerMode { pause(.lowPower) }
+        lockScreenCard.begin(startedAt: draft?.start ?? Date(), placeName: placeName, state: cardState)
         return true
     }
 
@@ -135,8 +139,34 @@ final class SessionManager {
         draft = nil
         coach.deliver(.sessionEnded)
         coach.endSession()
+        lockScreenCard.end()
         phase = .idle
         breakSuggestion = nil
+    }
+
+    /// What the Lock Screen card shows right now.
+    private var cardState: PostureActivityAttributes.ContentState {
+        let status: PostureActivityAttributes.Status
+        switch phase {
+        case .paused(.lowPower):
+            status = .pausedLowPower
+        case .paused(.headphonesOut):
+            status = .headphonesOut
+        case .live, .idle:
+            switch snapshot.context {
+            case .moving, .away:
+                status = .away
+            case .lookingDown:
+                status = .lookingDown
+            case .focused, .phone, .settling:
+                switch snapshot.zone {
+                case .aligned: status = .aligned
+                case .drifting: status = .drifting
+                case .slouching: status = .slouching
+                }
+            }
+        }
+        return PostureActivityAttributes.ContentState(status: status, score: snapshot.score)
     }
 
     // MARK: User actions
@@ -257,6 +287,15 @@ final class SessionManager {
         elapsed = now.timeIntervalSince(draft.start)
         minuteOfDay = Self.minuteOfDay(now)
         headphones.checkStreamHealth()
+        phone.refresh()
+
+        // Settings changed in the profile apply to the running session.
+        let config = settings.value
+        coach.mode = config.feedback
+        coach.language = config.coachLanguage
+        coach.voiceID = config.coachVoiceID
+        // Keeps the app alive behind the lock screen.
+        coach.ensureRunning()
 
         switch phase {
         case .live:
@@ -275,6 +314,7 @@ final class SessionManager {
         case .idle:
             break
         }
+        if phase != .idle { lockScreenCard.sync(cardState) }
     }
 
     private static func minuteOfDay(_ date: Date) -> Int {

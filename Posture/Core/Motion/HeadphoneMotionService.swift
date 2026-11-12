@@ -85,11 +85,18 @@ final class HeadphoneMotionService: NSObject {
         if holders == 0 { stopUpdates() }
     }
 
-    /// Called once a second by the session to notice a silent stream.
+    /// Called once a second by the session to notice a silent stream, and
+    /// to start it again if it never came up or was shut down underneath us
+    /// (AirPods not connected yet when the session began, for example).
     func checkStreamHealth() {
         if isStreaming, Date().timeIntervalSince(lastFrameAt) > 3 {
             isStreaming = false
         }
+        #if !targetEnvironment(simulator)
+        if holders > 0, !manager.isDeviceMotionActive {
+            startUpdates()
+        }
+        #endif
     }
 
     // MARK: Internals

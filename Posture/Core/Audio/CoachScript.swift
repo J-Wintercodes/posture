@@ -20,6 +20,13 @@ enum CoachScript {
         return options[abs(variant) % options.count]
     }
 
+    /// What Theo says when a voice is tried out in the profile.
+    static func preview(language: CoachLanguage) -> String {
+        language == .de
+            ? "Hallo, ich bin Theo. Schultern locker, Rücken lang."
+            : "Hi, I'm Theo. Soft shoulders, long spine."
+    }
+
     /// Title and body for the silent channel. Nil when a cue is not worth a
     /// notification.
     static func notification(for cue: CoachCue, language: CoachLanguage) -> (title: String, body: String)? {

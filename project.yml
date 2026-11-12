@@ -15,10 +15,16 @@ targets:
     platform: iOS
     sources:
       - Posture
+      - Shared
+    dependencies:
+      # The widget extension draws the Lock Screen card (Live Activity).
+      # XcodeGen embeds it into the app under PlugIns/.
+      - target: PostureWidgets
     info:
       path: Posture/Info.plist
       properties:
         CFBundleDisplayName: Posture
+        NSSupportsLiveActivities: true
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations:
@@ -36,6 +42,24 @@ targets:
     scheme:
       testTargets:
         - PostureTests
+  PostureWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - PostureWidgets
+      - Shared
+    info:
+      path: PostureWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Posture
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        # Must stay "<app bundle id>.<something>".
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.posture.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
   PostureTests:
     type: bundle.unit-test
     platform: iOS

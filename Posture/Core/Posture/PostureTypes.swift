@@ -35,11 +35,14 @@ struct HeadSample: Sendable {
 
 /// What the iPhone itself is doing. Feeds phone-usage suppression.
 struct PhoneContext: Equatable, Sendable {
+    /// Informational. On its own it does not silence the coach: an unlocked
+    /// phone that lies untouched on the desk is not being used.
     var isUnlocked = false
     var isAppActive = false
+    /// The phone is being handled, and it is not locked.
     var isHandheld = false
 
-    var isInUse: Bool { isUnlocked || isAppActive || isHandheld }
+    var isInUse: Bool { isAppActive || isHandheld }
 }
 
 /// The calibrated "upright" reference: where gravity sits in the headphone

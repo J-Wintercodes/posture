@@ -189,7 +189,9 @@ struct PostureEngine {
         if phoneBusy { phoneUntil = max(phoneUntil, s.t + tuning.phoneHoldOff) }
 
         // 5. Excursion tracking: how did the head leave the good band?
-        let forward = max(pitch, 0)
+        // Leaning the head a little towards the screen is normal sitting,
+        // so forward only starts to count past that allowance.
+        let forward = max(pitch - tuning.screenLean, 0)
         let back = max(-pitch, 0)
         if entry == .none {
             if forward > tuning.goodBand, !isMoving, s.t >= settleUntil {

@@ -129,6 +129,11 @@ struct UserSettings: Codable {
     var minBatteryForAutoStart = 0.2
     var feedback: FeedbackMode = .voice
     var coachLanguage: CoachLanguage = .systemDefault
+    /// `AVSpeechSynthesisVoice.identifier` of the voice picked in the
+    /// profile. Nil means "best installed voice". Optional on purpose: a new
+    /// non-optional field would fail to decode settings saved before it
+    /// existed and reset them.
+    var coachVoiceID: String?
     var readingTolerance: ReadingTolerance = .balanced
     var dailyGoalMinutes = 120
     var baseline: Baseline?

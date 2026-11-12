@@ -15,7 +15,11 @@ final class AudioCoachService: NSObject {
 
     @ObservationIgnored var mode: FeedbackMode = .voice
     @ObservationIgnored var language: CoachLanguage = .en
+    /// Voice picked in the profile. Nil means "best installed voice".
+    @ObservationIgnored var voiceID: String?
 
+    @ObservationIgnored private var voice: AVSpeechSynthesisVoice?
+    @ObservationIgnored private var voiceKey: String?
     @ObservationIgnored private let engine = AVAudioEngine()
     @ObservationIgnored private let tones = AVAudioPlayerNode()
     @ObservationIgnored private let keepAlive = AVAudioPlayerNode()
@@ -101,6 +105,19 @@ final class AudioCoachService: NSObject {
         try? startEngine()
     }
 
+    /// Called once a second while a session runs. The silent engine is the
+    /// only thing that keeps the app awake behind the lock screen, so if it
+    /// ever is not running (the audio session could not be opened at the
+    /// start, or an interruption ended without a notification) it is brought
+    /// back here instead of the session quietly dying.
+    func ensureRunning() {
+        if !isActive {
+            try? beginSession()
+        } else if !engine.isRunning {
+            recover()
+        }
+    }
+
     // MARK: Delivery
 
     func deliver(_ cue: CoachCue) {
@@ -127,13 +144,43 @@ final class AudioCoachService: NSObject {
         return true
     }
 
-    private func say(_ text: String) {
+    private func say(_ text: String, delay: TimeInterval = 0.45) {
+        let voice = currentVoice()
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: language.voiceCode)
-        utterance.rate = 0.46
+        utterance.voice = voice
+        // The natural voices are tuned for the default rate. The compact
+        // fallback sounds less clipped when it is slowed down a little.
+        let isNatural = (voice?.quality ?? .default) != .default
+        utterance.rate = isNatural ? 0.49 : 0.46
         utterance.volume = 0.9
-        utterance.preUtteranceDelay = 0.45
+        utterance.preUtteranceDelay = delay
         speech.speak(utterance)
+    }
+
+    /// Looking through the installed voices is not free, so the result is
+    /// kept until the language or the chosen voice changes.
+    private func currentVoice() -> AVSpeechSynthesisVoice? {
+        let key = "\(language.rawValue)|\(voiceID ?? "auto")"
+        if key != voiceKey {
+            voiceKey = key
+            voice = CoachVoice.resolve(id: voiceID, language: language)
+        }
+        return voice
+    }
+
+    /// Speaks a sample line with the current voice, for the profile screen.
+    /// Works without a running session.
+    func preview() {
+        if !isActive {
+            // Without the playback category the ring switch would mute it.
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try? session.setActive(true)
+        }
+        // A voice may have been downloaded since the last look.
+        voiceKey = nil
+        speech.stopSpeaking(at: .immediate)
+        say(CoachScript.preview(language: language), delay: 0)
     }
 
     // MARK: Chimes
@@ -161,14 +208,15 @@ final class AudioCoachService: NSObject {
             notes = [Note(783.99, 0, 0.5), Note(659.25, 0.14, 0.5), Note(523.25, 0.28, 0.9)]
         case .nudge:
             // Posture turned bad: low and falling, a minor third (F4 to D4).
-            // Clearly "down", but soft enough for a library.
-            notes = [Note(349.23, 0, 0.40), Note(293.66, 0.17, 0.80)]
-            gain = 0.17
+            // Clearly "down", and loud enough to be heard over music: it is
+            // the only signal when a spell begins.
+            notes = [Note(349.23, 0, 0.45), Note(293.66, 0.17, 0.90)]
+            gain = 0.30
         case .recovered:
-            // Posture is good again: high, short and quiet, a rising fourth
+            // Posture is good again: high and short, a rising fourth
             // (G5 to C6).
             notes = [Note(783.99, 0, 0.30), Note(1046.50, 0.11, 0.60)]
-            gain = 0.12
+            gain = 0.17
         case .uprightSet:
             notes = [Note(659.25, 0, 0.35), Note(880, 0.12, 0.7)]
         case .breakSuggested:

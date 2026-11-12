@@ -79,11 +79,11 @@ enum DemoScenario {
         case ..<60:
             return Pose(forward: 0, lateral: 0, lively: false)
         case ..<90:
-            return Pose(forward: 17 * (t - 60) / 30, lateral: 3 * (t - 60) / 30, lively: false)
+            return Pose(forward: 23 * (t - 60) / 30, lateral: 3 * (t - 60) / 30, lively: false)
         case ..<118:
-            return Pose(forward: 17, lateral: 3, lively: false)
+            return Pose(forward: 23, lateral: 3, lively: false)
         case ..<120:
-            return Pose(forward: 17 * (1 - ease((t - 118) / 2)), lateral: 3 * (1 - ease((t - 118) / 2)), lively: false)
+            return Pose(forward: 23 * (1 - ease((t - 118) / 2)), lateral: 3 * (1 - ease((t - 118) / 2)), lively: false)
         default:
             return Pose(forward: 0, lateral: 0, lively: false)
         }

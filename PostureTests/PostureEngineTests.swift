@@ -67,11 +67,23 @@ final class PostureEngineTests: XCTestCase {
         XCTAssertEqual(outcome.last?.zone, .aligned)
     }
 
+    func testLeaningTowardsTheScreenIsNormal() {
+        var (engine, head, outcome) = calibrated()
+        // Ten minutes with the head a little forward, the way people sit
+        // at a monitor or laptop. That is not a slouch.
+        run(&engine, head: &head, seconds: 20, into: &outcome) { t in (12 * self.ease(t / 20), 0) }
+        run(&engine, head: &head, seconds: 600, into: &outcome) { _ in (12, 0) }
+        XCTAssertTrue(outcome.nudges.isEmpty)
+        XCTAssertEqual(outcome.last?.zone, .aligned)
+        XCTAssertGreaterThan(outcome.last?.score ?? 0, 90)
+        XCTAssertEqual(outcome.last?.load ?? 1, 0, accuracy: 0.001)
+    }
+
     func testSlowSlouchGetsNudged() {
         var (engine, head, outcome) = calibrated()
-        // Sink 17 degrees over half a minute, then stay there.
-        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (17 * t / 30, 0) }
-        run(&engine, head: &head, seconds: 40, into: &outcome) { _ in (17, 0) }
+        // Sink 23 degrees over half a minute, then stay there.
+        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (23 * t / 30, 0) }
+        run(&engine, head: &head, seconds: 40, into: &outcome) { _ in (23, 0) }
         XCTAssertEqual(outcome.nudges.first, .slouch)
         XCTAssertEqual(outcome.last?.entry, .creep)
         XCTAssertLessThan(outcome.last?.score ?? 100, 70)
@@ -79,9 +91,9 @@ final class PostureEngineTests: XCTestCase {
 
     func testRecoveryAfterNudgeIsAcknowledged() {
         var (engine, head, outcome) = calibrated()
-        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (17 * t / 30, 0) }
-        run(&engine, head: &head, seconds: 40, into: &outcome) { _ in (17, 0) }
-        run(&engine, head: &head, seconds: 2, into: &outcome) { t in (17 * (1 - self.ease(t / 2)), 0) }
+        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (23 * t / 30, 0) }
+        run(&engine, head: &head, seconds: 40, into: &outcome) { _ in (23, 0) }
+        run(&engine, head: &head, seconds: 2, into: &outcome) { t in (23 * (1 - self.ease(t / 2)), 0) }
         run(&engine, head: &head, seconds: 10, into: &outcome) { _ in (0, 0) }
         XCTAssertTrue(outcome.events.contains(.recovered))
         XCTAssertEqual(outcome.last?.zone, .aligned)
@@ -120,12 +132,23 @@ final class PostureEngineTests: XCTestCase {
         var (engine, head, outcome) = calibrated()
         let scoredBefore = outcome.scoredSeconds
         var phone = PhoneContext()
-        phone.isUnlocked = true
+        phone.isHandheld = true
         run(&engine, head: &head, seconds: 0.6, phone: phone, into: &outcome) { t in (30 * self.ease(t / 0.6), 0) }
         run(&engine, head: &head, seconds: 180, phone: phone, into: &outcome) { _ in (30, 0) }
         XCTAssertTrue(outcome.nudges.isEmpty)
         XCTAssertEqual(outcome.last?.context, .phone)
         XCTAssertEqual(outcome.scoredSeconds, scoredBefore, accuracy: 0.001)
+    }
+
+    func testUnlockedPhoneLyingOnTheDeskDoesNotSilenceTheCoach() {
+        var (engine, head, outcome) = calibrated()
+        // Unlocked, but nobody is touching it: the slouch still counts.
+        var phone = PhoneContext()
+        phone.isUnlocked = true
+        run(&engine, head: &head, seconds: 30, phone: phone, into: &outcome) { t in (23 * t / 30, 0) }
+        run(&engine, head: &head, seconds: 40, phone: phone, into: &outcome) { _ in (23, 0) }
+        XCTAssertEqual(outcome.nudges.first, .slouch)
+        XCTAssertFalse(outcome.contexts.contains(.phone))
     }
 
     func testWalkingAwayPausesScoring() {
@@ -150,8 +173,8 @@ final class PostureEngineTests: XCTestCase {
         XCTAssertTrue(outcome.nudges.isEmpty)
 
         // A real slouch on top of that is still a slouch.
-        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (4.5 + 14 * t / 30, 0) }
-        run(&engine, head: &head, seconds: 60, into: &outcome) { _ in (18.5, 0) }
+        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (4.5 + 20 * t / 30, 0) }
+        run(&engine, head: &head, seconds: 60, into: &outcome) { _ in (24.5, 0) }
         XCTAssertEqual(outcome.nudges.first, .slouch)
     }
 
@@ -168,9 +191,9 @@ final class PostureEngineTests: XCTestCase {
         // spells must announce themselves and both recoveries must chime,
         // with no cooldown swallowing the second round.
         for _ in 0..<2 {
-            run(&engine, head: &head, seconds: 30, into: &outcome) { t in (17 * t / 30, 0) }
-            run(&engine, head: &head, seconds: 40, into: &outcome) { _ in (17, 0) }
-            run(&engine, head: &head, seconds: 2, into: &outcome) { t in (17 * (1 - self.ease(t / 2)), 0) }
+            run(&engine, head: &head, seconds: 30, into: &outcome) { t in (23 * t / 30, 0) }
+            run(&engine, head: &head, seconds: 40, into: &outcome) { _ in (23, 0) }
+            run(&engine, head: &head, seconds: 2, into: &outcome) { t in (23 * (1 - self.ease(t / 2)), 0) }
             run(&engine, head: &head, seconds: 15, into: &outcome) { _ in (0, 0) }
         }
         let sounds = outcome.events.filter { event in
@@ -182,18 +205,18 @@ final class PostureEngineTests: XCTestCase {
 
     func testWalkingOffEndsABadSpellSilently() {
         var (engine, head, outcome) = calibrated()
-        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (17 * t / 30, 0) }
-        run(&engine, head: &head, seconds: 40, into: &outcome) { _ in (17, 0) }
+        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (23 * t / 30, 0) }
+        run(&engine, head: &head, seconds: 40, into: &outcome) { _ in (23, 0) }
         XCTAssertEqual(outcome.levels, [0])
-        run(&engine, head: &head, seconds: 40, walking: true, into: &outcome) { _ in (17, 0) }
+        run(&engine, head: &head, seconds: 40, walking: true, into: &outcome) { _ in (23, 0) }
         run(&engine, head: &head, seconds: 20, into: &outcome) { _ in (0, 0) }
         XCTAssertFalse(outcome.events.contains(.recovered))
     }
 
     func testRemindersBackOffWhileASpellLasts() {
         var (engine, head, outcome) = calibrated()
-        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (20 * t / 30, 0) }
-        run(&engine, head: &head, seconds: 300, into: &outcome) { _ in (20, 0) }
+        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (26 * t / 30, 0) }
+        run(&engine, head: &head, seconds: 300, into: &outcome) { _ in (26, 0) }
         // One sound when it turns bad, then reminders after 40, 80, 160 s.
         // Without back-off five minutes of slouching would nag every 40 s.
         XCTAssertGreaterThanOrEqual(outcome.levels.count, 2)

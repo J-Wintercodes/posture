@@ -4,6 +4,9 @@ import SwiftUI
 struct ProfileSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var voices: [CoachVoice.Option] = []
+    @State private var hasNaturalVoice = true
 
     var body: some View {
         let settings = app.settings
@@ -46,6 +49,67 @@ struct ProfileSheet: View {
         }
         .scrollIndicators(.hidden)
         .background(Theme.bg.ignoresSafeArea())
+        .onAppear { reloadVoices() }
+        .onChange(of: app.settings.value.coachLanguage) { _, _ in reloadVoices() }
+        .onChange(of: scenePhase) { _, phase in
+            // Coming back from the Settings app, where a better voice may
+            // just have been downloaded.
+            if phase == .active { reloadVoices() }
+        }
+    }
+
+    // MARK: Voice
+
+    private func reloadVoices() {
+        let language = app.settings.value.coachLanguage
+        voices = CoachVoice.options(for: language)
+        hasNaturalVoice = CoachVoice.hasNaturalVoice(for: language)
+        // A voice of the other language, or one that was deleted, falls back
+        // to "Automatic".
+        if let id = app.settings.value.coachVoiceID, !voices.contains(where: { $0.id == id }) {
+            app.settings.update { $0.coachVoiceID = nil }
+        }
+    }
+
+    private func playVoiceSample() {
+        let config = app.settings.value
+        app.coach.language = config.coachLanguage
+        app.coach.voiceID = config.coachVoiceID
+        app.coach.preview()
+    }
+
+    @ViewBuilder
+    private func voiceRows(_ settings: SettingsStore) -> some View {
+        HStack {
+            Text("Voice")
+                .font(.ui(15, .medium))
+                .foregroundStyle(Theme.text)
+            Spacer()
+            Picker("Voice", selection: settings.binding(\.coachVoiceID)) {
+                Text("Automatic").tag(String?.none)
+                ForEach(voices) { option in
+                    Text(option.label).tag(String?.some(option.id))
+                }
+            }
+            .tint(Theme.mint)
+        }
+        Button {
+            playVoiceSample()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "play.fill").font(.system(size: 11, weight: .bold))
+                Text("Play a sample")
+                    .font(.ui(14, .medium))
+            }
+            .foregroundStyle(Theme.mint)
+        }
+        if !hasNaturalVoice {
+            let language = settings.value.coachLanguage == .de ? "German" : "English"
+            Text("Theo is using the basic iOS voice. For a natural-sounding one, download an Enhanced or Premium voice once in the Settings app: Accessibility › Spoken Content › Voices › \(language). Theo then uses it automatically.")
+                .font(.ui(13))
+                .foregroundStyle(Theme.textDim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: Coach
@@ -77,6 +141,7 @@ struct ProfileSheet: View {
                     }
                     .tint(Theme.mint)
                 }
+                voiceRows(settings)
             }
         }
     }

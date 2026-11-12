@@ -10,6 +10,11 @@ struct PostureTuning: Sendable {
     var lateralSign = 1.0
 
     // MARK: Bands (degrees from baseline)
+    /// Forward lean that is simply how people sit at a screen. The baseline
+    /// is "tall, eyes straight ahead"; working at a monitor or laptop tips
+    /// the head a few degrees towards it. This much forward pitch is free,
+    /// the bands below start counting after it.
+    var screenLean = 6.0
     var goodBand = 8.0
     var slouchBand = 16.0
     var severeDeviation = 26.0
