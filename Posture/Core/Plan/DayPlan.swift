@@ -4,8 +4,15 @@ import Foundation
 // the two wins. Pure Swift, no EventKit and no CoreLocation, so the rules can
 // be unit-tested.
 
+/// What a calendar entry means to the coach. Lectures, rooms and everything
+/// else in the calendar are `other` and ignored.
 enum EventKind: String, Codable, Sendable {
-    case uni, gym, other
+    /// "lernen bib": studying at the library.
+    case library
+    /// "lernen zuhause": studying at home.
+    case home
+    case gym
+    case other
 }
 
 /// One calendar entry, already stripped of EventKit types.
@@ -17,11 +24,14 @@ struct PlannedEvent: Identifiable, Equatable, Sendable {
     var kind: EventKind
 }
 
-/// Decides from the words in a calendar entry whether it is university, gym
-/// or neither. The word lists are editable in the profile.
+/// Decides from the title of a calendar entry what it is. Only the title is
+/// read: rooms, locations and calendar names are ignored on purpose, so a
+/// timetable full of lectures does not count as anything. The word lists
+/// are editable in the profile.
 enum EventClassifier {
-    static let defaultUniKeywords = "uni, universität, university, vorlesung, vl, übung, seminar, tutorium, praktikum, lecture, klausur, hörsaal, campus"
-    static let defaultGymKeywords = "gym, fitness, training, workout, sport, krafttraining, unisport, hochschulsport, mcfit, fitx"
+    static let defaultLibraryKeywords = "lernen bib"
+    static let defaultHomeKeywords = "lernen zuhause"
+    static let defaultGymKeywords = "gym, fitness, training, workout, krafttraining, mcfit, fitx"
 
     /// Splits "gym, fitness , Training" into ["gym", "fitness", "training"].
     static func keywords(_ list: String) -> [String] {
@@ -30,19 +40,19 @@ enum EventClassifier {
             .filter { !$0.isEmpty }
     }
 
-    static func kind(title: String, location: String?, calendarName: String?, uni: [String], gym: [String]) -> EventKind {
-        let text = normalize([title, location ?? "", calendarName ?? ""].joined(separator: " "))
+    static func kind(title: String, library: [String], home: [String], gym: [String]) -> EventKind {
+        let text = normalize(title)
         let words = tokens(text)
-        // Gym first: "Unisport" is training, not a lecture.
+        if library.contains(where: { matches($0, text: text, words: words) }) { return .library }
+        if home.contains(where: { matches($0, text: text, words: words) }) { return .home }
         if gym.contains(where: { matches($0, text: text, words: words) }) { return .gym }
-        if uni.contains(where: { matches($0, text: text, words: words) }) { return .uni }
         return .other
     }
 
-    /// Short keywords ("vl", "uni", "gym") must be a whole word, otherwise
-    /// "uni" would hit "Community". Longer ones match the start of a word,
-    /// so "vorlesung" hits "Vorlesungsreihe" but "sport" does not hit
-    /// "Transport". A keyword with a space or a hyphen is searched as is.
+    /// A keyword of several words ("lernen bib") is searched as it stands,
+    /// so "Lernen Bibliothek" matches too. A short single word ("gym") must
+    /// be a whole word; a longer one matches the start of a word, so
+    /// "training" hits "Trainingsplan" but "sport" would not hit "Transport".
     static func matches(_ keyword: String, text: String, words: [String]) -> Bool {
         guard !keyword.isEmpty else { return false }
         if keyword.contains(where: { !isWordCharacter($0) }) {
@@ -82,7 +92,7 @@ struct DayContext: Equatable, Sendable {
     var source: Source = .none
     /// Name of the saved place the phone is at, if any.
     var placeName: String?
-    /// The university or gym entry that is running right now.
+    /// The study or gym entry that is running right now.
     var event: PlannedEvent?
     /// The calendar claims something the location does not back up.
     var calendarOverruled = false
@@ -91,6 +101,11 @@ struct DayContext: Equatable, Sendable {
     var gymAt: Date?
     /// A gym entry ended within the last two hours.
     var afterGym = false
+    /// Last night's answer to the pain question, 0...10. Nil when unknown.
+    var recentPain: Int?
+
+    /// Enough pain that only gentle routines should be suggested.
+    var needsGentle: Bool { (recentPain ?? 0) >= PainScale.gentleFrom }
 }
 
 enum DayPlanner {
@@ -105,6 +120,8 @@ enum DayPlanner {
         var savedKinds: Set<PlaceKind> = []
         /// True when "at none of the saved places" can be trusted.
         var locationKnown = false
+        /// Last night's pain answer, passed through to the context.
+        var recentPain: Int?
     }
 
     static let gymLead: TimeInterval = 90 * 60
@@ -114,11 +131,12 @@ enum DayPlanner {
     ///
     /// - Inside a saved place the place wins, whatever the calendar says.
     /// - Outside all of them the calendar is believed, unless the user has
-    ///   saved a place for exactly that (a university, a gym) and the phone
-    ///   is known not to be there. Then the entry is taken as skipped.
+    ///   saved a place for exactly that (a library, home, a gym) and the
+    ///   phone is known not to be there. Then the entry is taken as skipped.
     static func resolve(_ input: Input) -> DayContext {
         let now = input.now
         var context = DayContext()
+        context.recentPain = input.recentPain
         let relevant = input.events.filter { $0.kind != .other }
         let running = relevant.filter { $0.start <= now && now < $0.end }
         let current = running.first { $0.kind == .gym } ?? running.first
@@ -132,7 +150,7 @@ enum DayPlanner {
                 context.calendarOverruled = true
             }
         } else if let current {
-            let needed: PlaceKind = current.kind == .gym ? .gym : .uni
+            let needed = placeKind(for: current.kind)
             if input.locationKnown, input.savedKinds.contains(needed) {
                 context.calendarOverruled = true
             } else {
@@ -168,9 +186,20 @@ enum DayPlanner {
 
     static func situation(for kind: EventKind) -> Situation {
         switch kind {
-        case .uni: return .uni
+        case .library: return .library
+        case .home: return .home
         case .gym: return .gym
         case .other: return .elsewhere
+        }
+    }
+
+    /// The kind of saved place an entry would be checked against.
+    static func placeKind(for kind: EventKind) -> PlaceKind {
+        switch kind {
+        case .library: return .library
+        case .home: return .home
+        case .gym: return .gym
+        case .other: return .other
         }
     }
 }

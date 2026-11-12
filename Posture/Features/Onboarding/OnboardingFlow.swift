@@ -162,7 +162,7 @@ struct PlacesEditor: View {
     @State private var busy: PlaceKind? = nil
     @State private var note: String? = nil
 
-    private let addable: [PlaceKind] = [.library, .home, .uni, .gym]
+    private let addable: [PlaceKind] = [.library, .home, .gym]
     /// iOS watches at most 20 regions per app. Stay well below.
     private let maxPlaces = 12
 
@@ -340,7 +340,7 @@ private struct PermissionsStep: View {
             permissionRow(
                 icon: "calendar",
                 title: "Calendar",
-                detail: "Reads your iPhone calendar, including subscribed iCal feeds, to know about lectures and the gym. Read only.",
+                detail: "Reads your iPhone calendar for entries titled \"lernen bib\", \"lernen zuhause\" and the gym. Everything else is ignored. Read only.",
                 isOn: app.calendar.hasAccess,
                 actionTitle: "Allow"
             ) {

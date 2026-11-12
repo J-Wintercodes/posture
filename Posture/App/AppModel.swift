@@ -2,13 +2,24 @@ import Foundation
 import Observation
 import UserNotifications
 
+/// The pain question on screen. Carries the day it is about.
+struct PainPrompt: Identifiable, Equatable {
+    var dayKey: String
+    var id: String { dayKey }
+}
+
 /// Composition root. Builds the services once, wires them together and owns
 /// what happens on arrival at a saved place.
 @MainActor
 @Observable
 final class AppModel {
+    /// One instance for the screens and for Siri. An App Intent can launch
+    /// the app in the background, without a window, and needs the same model.
+    static let shared = AppModel()
+
     let settings: SettingsStore
     let store: SessionStore
+    let log: DayLogStore
     let headphones: HeadphoneMotionService
     let phone: PhoneContextService
     let power: LocationAndPowerGuard
@@ -22,6 +33,8 @@ final class AppModel {
     var showCalibration = false
     /// The routine on screen, if any.
     var activeRoutine: Routine?
+    /// The pain scale on screen, if any.
+    var painPrompt: PainPrompt?
     /// False when iOS will not show the check-in notifications.
     private(set) var notificationsOn = true
 
@@ -35,14 +48,16 @@ final class AppModel {
     init() {
         let settings = SettingsStore()
         let store = SessionStore()
+        let log = DayLogStore()
         let headphones = HeadphoneMotionService()
         let phone = PhoneContextService()
         let power = LocationAndPowerGuard()
         let coach = AudioCoachService()
         let calendar = CalendarService()
-        let day = DayCoach(settings: settings, store: store, calendar: calendar, power: power, coach: coach)
+        let day = DayCoach(settings: settings, store: store, log: log, calendar: calendar, power: power, coach: coach)
         self.settings = settings
         self.store = store
+        self.log = log
         self.headphones = headphones
         self.phone = phone
         self.power = power
@@ -56,6 +71,8 @@ final class AppModel {
 
         power.onArrival = { [weak self] id in self?.arrived(at: id) }
         power.onDeparture = { [weak self] id in self?.left(id) }
+        power.onEnter = { [weak self] id in self?.entered(id) }
+        power.onOutside = { [weak self] id in self?.log.close(.library, placeID: id) }
         power.onPlacesChange = { [weak self] in self?.day.refresh() }
         power.onPowerStateChange = { [weak self] in
             self?.session.powerStateChanged()
@@ -70,6 +87,12 @@ final class AppModel {
         router.onCheckInShown = { [weak self] in
             Task { @MainActor in self?.day.refresh() }
         }
+        router.onPainAnswer = { [weak self] level, dayKey in
+            Task { @MainActor in self?.logPain(level, dayKey: dayKey) }
+        }
+        router.onOpenPainCheck = { [weak self] dayKey in
+            Task { @MainActor in self?.painPrompt = PainPrompt(dayKey: dayKey) }
+        }
         UNUserNotificationCenter.current().delegate = router
 
         power.sync(places: settings.value.places)
@@ -83,13 +106,14 @@ final class AppModel {
         power.refreshStates()
         power.verifyPosition(places: settings.value.places)
         calendar.reload()
+        day.extendLight()
         day.refresh()
         attemptAutoTracking(arrived: false)
         Task { notificationsOn = await Notifier.isAuthorized() }
     }
 
-    /// The profile was closed: calendar switch, word lists or the interval
-    /// may have changed.
+    /// The profile was closed: calendar switch, word lists, the interval or
+    /// the bedtime may have changed.
     func settingsChanged() {
         day.applySettings()
     }
@@ -113,7 +137,7 @@ final class AppModel {
         snooze()
     }
 
-    // MARK: Reminders only
+    // MARK: Study mode
 
     func startReminders() {
         guard !session.isRunning else { return }
@@ -127,7 +151,78 @@ final class AppModel {
 
     func stopReminders() {
         day.stopLight()
+        day.refresh()
         snooze()
+    }
+
+    /// "Hey Siri, mach Lernmodus an". Returns what Siri says back.
+    func startStudyMode() -> String {
+        let de = settings.value.coachLanguage == .de
+        if session.isRunning {
+            return de ? "Das Tracking läuft schon und zählt als Sitzen." : "Tracking is already running and counts as sitting."
+        }
+        if day.mode == .light {
+            return de ? "Der Lernmodus läuft schon." : "Study mode is already on."
+        }
+        day.startLight(auto: false)
+        Task { notificationsOn = await Notifier.isAuthorized() }
+        let minutes = settings.value.checkInMinutes
+        return de
+            ? "Lernmodus ist an. Ich melde mich alle \(minutes) Minuten."
+            : "Study mode is on. I'll check in every \(minutes) minutes."
+    }
+
+    /// "Hey Siri, mach Lernmodus aus". Returns what Siri says back.
+    func stopStudyMode() -> String {
+        let de = settings.value.coachLanguage == .de
+        if session.isRunning {
+            endSession()
+        } else if day.mode == .light {
+            stopReminders()
+        } else {
+            return de ? "Der Lernmodus war nicht an." : "Study mode was not on."
+        }
+        let sat = Self.spokenDuration(log.sittingSeconds(on: Date()), de: de)
+        return de ? "Lernmodus ist aus. Heute gesessen: \(sat)." : "Study mode is off. Sat today: \(sat)."
+    }
+
+    /// "2 Stunden 15 Minuten", for Siri to read out.
+    static func spokenDuration(_ seconds: TimeInterval, de: Bool) -> String {
+        let total = Int((max(0, seconds) / 60).rounded())
+        let hours = total / 60
+        let minutes = total % 60
+        var parts: [String] = []
+        if hours > 0 {
+            if de {
+                parts.append(hours == 1 ? "eine Stunde" : "\(hours) Stunden")
+            } else {
+                parts.append(hours == 1 ? "one hour" : "\(hours) hours")
+            }
+        }
+        if minutes > 0 || hours == 0 {
+            if de {
+                parts.append(minutes == 1 ? "eine Minute" : "\(minutes) Minuten")
+            } else {
+                parts.append(minutes == 1 ? "one minute" : "\(minutes) minutes")
+            }
+        }
+        return parts.joined(separator: " ")
+    }
+
+    // MARK: Pain
+
+    /// The day an answer given right now belongs to.
+    var tonightKey: String {
+        DayKey.key(for: DayKey.eveningDay(for: Date()))
+    }
+
+    func askAboutPain() {
+        painPrompt = PainPrompt(dayKey: tonightKey)
+    }
+
+    func logPain(_ level: Int, dayKey: String) {
+        log.setPain(level, dayKey: dayKey)
+        day.painAnswered()
     }
 
     // MARK: Routines
@@ -139,8 +234,8 @@ final class AppModel {
         activeRoutine = routine
     }
 
-    /// A check-in notification was tapped. If its routine no longer fits the
-    /// place (it was planned for home and the phone has left), open what
+    /// A check-in or suggestion was tapped. If its routine no longer fits
+    /// the place (it was planned for home and the phone has left), open what
     /// fits now instead.
     private func openFromNotification(routineID: String) {
         day.refresh()
@@ -190,7 +285,15 @@ final class AppModel {
 
     // MARK: Arrival and departure
 
+    /// The phone is at a saved place: either it just crossed in, or the app
+    /// just found out.
     private func arrived(at id: String) {
+        // Being in a library counts as sitting. Only with location "Always":
+        // without it nobody would notice the leaving, and the count would
+        // run on.
+        if let place = place(withID: id), place.kind == .library, power.hasAlwaysAccess {
+            log.open(.library, placeID: id)
+        }
         day.refresh()
         let config = settings.value
         guard config.onboardingDone else { return }
@@ -204,13 +307,21 @@ final class AppModel {
         }
     }
 
+    /// A real geofence crossing into a place.
+    private func entered(_ id: String) {
+        if place(withID: id)?.kind == .home {
+            day.noteHomeArrival()
+        }
+    }
+
     private func left(_ id: String) {
-        let hadReminders = day.mode == .light
+        log.close(.library, placeID: id)
+        let hadStudyMode = day.mode == .light
         day.placeLeft(id)
         let name = place(withID: id)?.displayName ?? "your place"
-        if hadReminders, day.mode == .off {
+        if hadStudyMode, day.mode == .off {
             Notifier.post(
-                title: "Reminders stopped",
+                title: "Study mode off",
                 body: "You left \(name).",
                 id: "auto-stop",
                 sound: false
@@ -236,7 +347,7 @@ final class AppModel {
         guard day.mode == .off, !session.isRunning, !isSnoozed else { return }
         day.startLight(auto: true)
         Notifier.post(
-            title: "Reminders on",
+            title: "Study mode on",
             body: "You're at \(place.displayName). A check-in every \(settings.value.checkInMinutes) minutes. Nothing else is running.",
             id: "auto-start",
             sound: false

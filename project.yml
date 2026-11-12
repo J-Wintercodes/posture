@@ -7,8 +7,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.2.0"
-    CURRENT_PROJECT_VERSION: "2"
+    MARKETING_VERSION: "0.3.0"
+    CURRENT_PROJECT_VERSION: "3"
 targets:
   Posture:
     type: application
@@ -34,8 +34,8 @@ targets:
         NSMotionUsageDescription: Posture reads head motion from your AirPods to notice when you start to slouch.
         NSLocationWhenInUseUsageDescription: Posture uses your location to save places such as your home and your libraries, and to check which of them you are at.
         NSLocationAlwaysAndWhenInUseUsageDescription: Posture notices when you arrive at or leave one of your saved places, so reminders fit where you are.
-        NSCalendarsFullAccessUsageDescription: Posture reads your calendar to know when you are in a lecture or about to go to the gym. It never changes it.
-        NSCalendarsUsageDescription: Posture reads your calendar to know when you are in a lecture or about to go to the gym. It never changes it.
+        NSCalendarsFullAccessUsageDescription: Posture reads your calendar to know when you planned to study or go to the gym. It never changes it.
+        NSCalendarsUsageDescription: Posture reads your calendar to know when you planned to study or go to the gym. It never changes it.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.posture

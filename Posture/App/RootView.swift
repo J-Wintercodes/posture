@@ -69,6 +69,11 @@ struct MainShell: View {
                 .environment(app)
                 .preferredColorScheme(.dark)
         }
+        .sheet(item: $app.painPrompt) { prompt in
+            PainCheckSheet(prompt: prompt)
+                .environment(app)
+                .preferredColorScheme(.dark)
+        }
         .sheet(isPresented: $app.showProfile, onDismiss: { app.settingsChanged() }) {
             ProfileSheet()
                 .environment(app)

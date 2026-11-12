@@ -9,6 +9,9 @@ struct TrackerView: View {
         let day = app.store.summary(on: selected)
         TabScroll {
             ScreenHeader(eyebrow: "One day at a time", title: "Your journal")
+            SittingCalendarCard()
+            SectionLabel("Tracked posture")
+                .padding(.top, 4)
             calendarStrip(days)
             summaryCard(day)
             chapters(day)

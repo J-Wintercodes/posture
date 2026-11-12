@@ -11,6 +11,9 @@ struct HomeView: View {
         TabScroll {
             ScreenHeader(eyebrow: Fmt.headerDate(Date()), title: greeting)
             hero(today: today)
+            if showsPainCard {
+                painCard
+            }
             nowCard
             actionCard
             todayCard(today)
@@ -87,10 +90,45 @@ struct HomeView: View {
 
     private func statsStrip(_ today: DaySummary) -> some View {
         let resets = app.store.resetsCount()
+        let sat = app.log.sittingSeconds(on: Date())
         return HStack(spacing: 14) {
-            statColumn("Sitting", value: today.score.map { "\($0)" } ?? "—", progress: Double(today.score ?? 0) / 100, color: Theme.mint)
-            statColumn("Walking", value: "—", progress: 0, color: Theme.mint)
+            statColumn("Posture", value: today.score.map { "\($0)" } ?? "—", progress: Double(today.score ?? 0) / 100, color: Theme.mint)
+            statColumn("Sat today", value: Fmt.duration(sat), progress: sat / (8 * 3600), color: Theme.amber)
             statColumn("Resets", value: "\(resets)/5", progress: Double(resets) / 5, color: Theme.amber)
+        }
+    }
+
+    // MARK: Before bed
+
+    /// From two hours before bedtime until the question is answered.
+    private var showsPainCard: Bool {
+        let config = app.settings.value
+        guard config.painCheckEnabled else { return false }
+        let now = Date()
+        let evening = DayKey.eveningDay(for: now)
+        guard app.log.painLevel(on: evening) == nil else { return false }
+        let bedtime = DayKey.bedtime(on: evening, minutes: config.bedMinutes)
+        return now >= bedtime.addingTimeInterval(-2 * 3600)
+    }
+
+    private var painCard: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    Image(systemName: "moon.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Theme.mint)
+                    SectionLabel("Before bed", color: Theme.mint)
+                }
+                Text("Any pain today?")
+                    .font(.serif(25))
+                    .foregroundStyle(Theme.text)
+                Text("One number from 0 to 10. It goes into your journal next to the time you sat.")
+                    .font(.ui(14))
+                    .foregroundStyle(Theme.textDim)
+                    .fixedSize(horizontal: false, vertical: true)
+                PillButton(title: "Answer", icon: "checkmark", kind: .dark) { app.askAboutPain() }
+            }
         }
     }
 
@@ -124,7 +162,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
                     StatusDot(color: accent)
-                    SectionLabel(isDue ? "Check-in due" : "Right now", color: accent)
+                    SectionLabel(nowLabel(isDue: isDue, context: context), color: accent)
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(situationTitle(context))
@@ -149,6 +187,13 @@ struct HomeView: View {
         }
     }
 
+    private func nowLabel(isDue: Bool, context: DayContext) -> String {
+        if isDue { return "Check-in due" }
+        // At home outside a session nothing is timed: it is just an offer.
+        if context.situation == .home, app.day.mode == .off { return "At home · whenever you like" }
+        return "Right now"
+    }
+
     private func situationTitle(_ context: DayContext) -> String {
         switch context.situation {
         case .home:
@@ -156,7 +201,7 @@ struct HomeView: View {
         case .library:
             return "At \(context.placeName ?? "the library")"
         case .uni:
-            return context.source == .calendar ? "In a lecture" : "At \(context.placeName ?? "university")"
+            return "At \(context.placeName ?? "university")"
         case .gym:
             return "At the gym"
         case .elsewhere:
@@ -195,7 +240,7 @@ struct HomeView: View {
         return parts.joined(separator: " ")
     }
 
-    /// University and gym entries still to come today, as the app reads them.
+    /// Study and gym entries still to come today, as the app reads them.
     @ViewBuilder
     private var planRows: some View {
         let now = Date()
@@ -213,7 +258,7 @@ struct HomeView: View {
                             .monospacedDigit()
                             .foregroundStyle(event.start <= now ? Theme.mint : Theme.textDim)
                             .frame(width: 44, alignment: .leading)
-                        Image(systemName: event.kind == .gym ? "dumbbell.fill" : "graduationcap.fill")
+                        Image(systemName: planIcon(event.kind))
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(Theme.textFaint)
                             .frame(width: 18)
@@ -225,6 +270,14 @@ struct HomeView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func planIcon(_ kind: EventKind) -> String {
+        switch kind {
+        case .gym: return "dumbbell.fill"
+        case .home: return "house.fill"
+        case .library, .other: return "building.columns.fill"
         }
     }
 
@@ -264,8 +317,8 @@ struct HomeView: View {
                 connectCalendar()
             } label: {
                 Text(app.calendar.wasDenied
-                     ? "Calendar access is off. Tap to allow it in Settings, so lectures and the gym are known."
-                     : "Tap to connect your calendar, so lectures and the gym are known.")
+                     ? "Calendar access is off. Tap to allow it in Settings, so your study blocks and the gym are known."
+                     : "Tap to connect your calendar, so your study blocks and the gym are known.")
                     .font(.ui(13, .medium))
                     .foregroundStyle(Theme.amber)
                     .multilineTextAlignment(.leading)
@@ -308,7 +361,7 @@ struct HomeView: View {
                             StatusDot(color: statusColor)
                             SectionLabel(actionLabel(running: running, reminders: reminders, connected: connected), color: statusColor)
                         }
-                        Text(running ? "Theo is with you." : (reminders ? "Check-ins are on." : "Ready when you are."))
+                        Text(running ? "Theo is with you." : (reminders ? "Study mode is on." : "Ready when you are."))
                             .font(.serif(27))
                             .foregroundStyle(Theme.text)
                         Text(actionSubtext(running: running, reminders: reminders))
@@ -322,10 +375,10 @@ struct HomeView: View {
                 if running {
                     PillButton(title: "Open session", icon: "waveform") { app.startManualSession() }
                 } else if reminders {
-                    PillButton(title: "Stop reminders", icon: "bell.slash.fill", kind: .dark) { app.stopReminders() }
+                    PillButton(title: "Stop study mode", icon: "book.closed.fill", kind: .dark) { app.stopReminders() }
                     PillButton(title: "Track posture with AirPods", icon: "play.fill", kind: .dark) { app.startManualSession() }
                 } else {
-                    PillButton(title: "Start reminders", icon: "bell.fill") { app.startReminders() }
+                    PillButton(title: "Start study mode", icon: "book.fill") { app.startReminders() }
                     PillButton(title: "Track posture with AirPods", icon: "play.fill", kind: .dark) { app.startManualSession() }
                 }
                 if reminders, !app.notificationsOn {
@@ -351,7 +404,7 @@ struct HomeView: View {
 
     private func actionLabel(running: Bool, reminders: Bool, connected: Bool) -> String {
         if running { return "Session running" }
-        if reminders { return "Reminders only" }
+        if reminders { return "Study mode" }
         return connected ? "AirPods connected" : "No AirPods needed"
     }
 
@@ -362,9 +415,9 @@ struct HomeView: View {
         }
         if reminders {
             let next = app.day.nextCheckInAt.map { "Next check-in at \(Fmt.time($0)). " } ?? ""
-            return next + "No sensors, no audio: this costs next to no battery."
+            return next + "This time counts as sitting. No sensors, no audio: it costs next to no battery."
         }
-        return "Reminders check in every \(minutes) minutes and cost next to no battery. Tracking watches your posture through the AirPods and uses more."
+        return "Study mode checks in every \(minutes) minutes and counts the time as sitting. It costs next to no battery, and Siri can start it. Tracking watches your posture through the AirPods and uses more."
     }
 
     // MARK: Today

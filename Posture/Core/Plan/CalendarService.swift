@@ -10,15 +10,17 @@ import Observation
 final class CalendarService {
     private(set) var hasAccess = false
     private(set) var wasDenied = false
-    /// University and gym entries from a few hours back to a day ahead,
-    /// sorted by start.
+    /// Study ("lernen bib", "lernen zuhause") and gym entries from a few
+    /// hours back to a day ahead, sorted by start. Everything else in the
+    /// calendar is left out.
     private(set) var events: [PlannedEvent] = []
 
     @ObservationIgnored var onChange: (() -> Void)?
 
     @ObservationIgnored private let store = EKEventStore()
     @ObservationIgnored private var observer: NSObjectProtocol?
-    @ObservationIgnored private var uniKeywords: [String] = []
+    @ObservationIgnored private var libraryKeywords: [String] = []
+    @ObservationIgnored private var homeKeywords: [String] = []
     @ObservationIgnored private var gymKeywords: [String] = []
     @ObservationIgnored private var isEnabled = true
     @ObservationIgnored private var lastReloadAt = Date.distantPast
@@ -52,9 +54,10 @@ final class CalendarService {
     }
 
     /// Takes the word lists from the settings and reads the calendar again.
-    func configure(enabled: Bool, uniKeywords: String, gymKeywords: String) {
+    func configure(enabled: Bool, libraryKeywords: String, homeKeywords: String, gymKeywords: String) {
         isEnabled = enabled
-        self.uniKeywords = EventClassifier.keywords(uniKeywords)
+        self.libraryKeywords = EventClassifier.keywords(libraryKeywords)
+        self.homeKeywords = EventClassifier.keywords(homeKeywords)
         self.gymKeywords = EventClassifier.keywords(gymKeywords)
         reload()
     }
@@ -81,9 +84,8 @@ final class CalendarService {
             let title = event.title ?? ""
             let kind = EventClassifier.kind(
                 title: title,
-                location: event.location,
-                calendarName: event.calendar?.title,
-                uni: uniKeywords,
+                library: libraryKeywords,
+                home: homeKeywords,
                 gym: gymKeywords
             )
             guard kind != .other else { continue }

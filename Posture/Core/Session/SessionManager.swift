@@ -314,6 +314,7 @@ final class SessionManager {
         coach.voiceID = config.coachVoiceID
         // Keeps the app alive behind the lock screen.
         coach.ensureRunning()
+        day.heartbeat(now: now)
 
         switch phase {
         case .live:

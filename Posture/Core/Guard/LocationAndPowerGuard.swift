@@ -21,6 +21,12 @@ final class LocationAndPowerGuard: NSObject {
 
     @ObservationIgnored var onArrival: ((String) -> Void)?
     @ObservationIgnored var onDeparture: ((String) -> Void)?
+    /// A real geofence crossing into a place, as opposed to "the app just
+    /// found out it is already there".
+    @ObservationIgnored var onEnter: ((String) -> Void)?
+    /// The phone is confirmed not to be at this place (reported every time
+    /// iOS says so, whether or not it was thought to be inside).
+    @ObservationIgnored var onOutside: ((String) -> Void)?
     /// The set of places the phone is inside changed.
     @ObservationIgnored var onPlacesChange: (() -> Void)?
     @ObservationIgnored var onPowerStateChange: (() -> Void)?
@@ -163,10 +169,12 @@ final class LocationAndPowerGuard: NSObject {
         if inside {
             let isNew = insidePlaceIDs.insert(id).inserted
             if isNew { onPlacesChange?() }
+            if announce { onEnter?(id) }
             if isNew || announce { onArrival?(id) }
         } else {
             let wasInside = insidePlaceIDs.remove(id) != nil
             if wasInside { onPlacesChange?() }
+            onOutside?(id)
             if wasInside || announce { onDeparture?(id) }
         }
     }

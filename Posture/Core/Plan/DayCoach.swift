@@ -6,11 +6,15 @@ import Observation
 ///
 /// It runs in two ways:
 ///
-/// - **Reminders only** (`light`): no sensors, no audio, nothing running.
-///   The check-ins are handed to iOS as scheduled notifications and the app
-///   can sleep or be closed. This is the mode that costs no battery.
+/// - **Study mode** (`light`): no sensors, no audio, nothing running. The
+///   check-ins are handed to iOS as scheduled notifications and the app can
+///   sleep or be closed. This is the mode that costs no battery. It can be
+///   started with Siri.
 /// - **Tracking**: an AirPods session is live anyway, so the check-ins are
 ///   decided on the spot and Theo says them.
+///
+/// Both count as sitting in the day log. Outside of them it plans the quiet
+/// things: the pain question before bed and calm suggestions at home.
 @MainActor
 @Observable
 final class DayCoach {
@@ -38,22 +42,26 @@ final class DayCoach {
     @ObservationIgnored private(set) var lightPlaceID: String?
     @ObservationIgnored private var sittingSince = Date()
     @ObservationIgnored private var rotation = 0
+    @ObservationIgnored private var lastStudyTouchAt = Date.distantPast
 
     @ObservationIgnored private let settings: SettingsStore
     @ObservationIgnored private let store: SessionStore
+    @ObservationIgnored private let log: DayLogStore
     @ObservationIgnored private let calendar: CalendarService
     @ObservationIgnored private let power: LocationAndPowerGuard
     @ObservationIgnored private let coach: AudioCoachService
     @ObservationIgnored private let defaults: UserDefaults
 
-    /// Reminders stop on their own this long after the last sign of life
-    /// (start, or a finished routine).
+    /// Study mode stops on its own this long after the last sign of life
+    /// (start, opening the app, or a finished routine).
     static let lightSpan: TimeInterval = 4 * 3600
     /// A fired check-in is offered this long.
     static let dueLifetime: TimeInterval = 20 * 60
     static let checkInIDs: [String] = (0..<12).map { "checkin-\($0)" }
 
     private let lightKey = "posture.light.v1"
+    private let homeArrivalKey = "posture.home.arrivalAt"
+    private let daySlotKey = "posture.home.daySlot"
 
     private struct LightState: Codable {
         var anchor: Date
@@ -64,10 +72,11 @@ final class DayCoach {
         var placeID: String?
     }
 
-    init(settings: SettingsStore, store: SessionStore, calendar: CalendarService,
+    init(settings: SettingsStore, store: SessionStore, log: DayLogStore, calendar: CalendarService,
          power: LocationAndPowerGuard, coach: AudioCoachService, defaults: UserDefaults = .standard) {
         self.settings = settings
         self.store = store
+        self.log = log
         self.calendar = calendar
         self.power = power
         self.coach = coach
@@ -99,25 +108,43 @@ final class DayCoach {
         let config = settings.value
         calendar.configure(
             enabled: config.calendarEnabled,
-            uniKeywords: config.uniKeywords,
+            libraryKeywords: config.libraryKeywords,
+            homeKeywords: config.homeKeywords,
             gymKeywords: config.gymKeywords
         )
+        Notifier.registerCategories(language: config.coachLanguage)
         refresh()
     }
 
-    /// Works out the situation again. Called when the app opens, when the
-    /// calendar or the place changes and after a routine.
+    /// Works out the situation again and lays out every scheduled
+    /// notification anew. Called when the app opens, when the calendar or
+    /// the place changes and after a routine.
     func refresh(now: Date = Date()) {
         calendar.reloadIfOlder(than: 300)
+        log.expire(now: now)
         if mode == .light { catchUpLight(now: now) }
         if let fired = due, now.timeIntervalSince(fired.at) > Self.dueLifetime { due = nil }
 
+        // Study mode started before the location was known (Siri launches
+        // the app cold): tie it to the place as soon as there is one.
+        if mode == .light, lightPlaceID == nil, let here = currentPlace {
+            lightPlaceID = here.id.uuidString
+            persistLight()
+        }
+
         let next = DayPlanner.resolve(plannerInput(now: now))
         if next != context { context = next }
-        let advice = Advisor.advice(for: next, hour: hour(of: now), index: rotation, doneToday: store.routinesDone())
+        let advice: Advice?
+        if mode == .off, next.situation == .home {
+            // Not in a session at home: no timer, just a calm offer.
+            advice = Advisor.homePick(for: next, hour: hour(of: now), doneToday: store.routinesDone(), lastDone: lastDone())
+        } else {
+            advice = Advisor.advice(for: next, hour: hour(of: now), index: rotation, doneToday: store.routinesDone())
+        }
         if advice != suggestion { suggestion = advice }
 
         if mode == .light { scheduleLight(now: now) }
+        scheduleAmbient(now: now)
     }
 
     private func plannerInput(now: Date) -> DayPlanner.Input {
@@ -130,6 +157,7 @@ final class DayCoach {
         input.placeName = here?.displayName
         input.savedKinds = Set(places.map { $0.kind })
         input.locationKnown = power.isLocationTrusted
+        input.recentPain = log.recentPain(now: now)
         return input
     }
 
@@ -137,7 +165,22 @@ final class DayCoach {
         Calendar.current.component(.hour, from: date)
     }
 
-    // MARK: Reminders only
+    /// Routine id to the last time it was finished.
+    private func lastDone() -> [String: Date] {
+        var result: [String: Date] = [:]
+        for entry in store.routineLog {
+            if let known = result[entry.id], known >= entry.date { continue }
+            result[entry.id] = entry.date
+        }
+        return result
+    }
+
+    private func lastHomeRoutineAt() -> Date? {
+        let homeIDs = Set(RoutineCatalog.all.filter { $0.homeOnly }.map { $0.id })
+        return store.routineLog.filter { homeIDs.contains($0.id) }.map { $0.date }.max()
+    }
+
+    // MARK: Study mode (reminders only)
 
     func startLight(auto: Bool = false, now: Date = Date()) {
         guard mode == .off else { return }
@@ -148,13 +191,16 @@ final class DayCoach {
         due = nil
         lightEndsAt = now.addingTimeInterval(Self.lightSpan)
         lightIsAuto = auto
-        // Leaving the place where the reminders were started ends them.
+        // Leaving the place where study mode was started ends it.
         lightPlaceID = currentPlace?.id.uuidString
+        log.open(.study, at: now)
         persistLight()
         refresh(now: now)
     }
 
-    func stopLight() {
+    /// `at` is when study mode really ended, which can be in the past when
+    /// it ran out while the app was asleep.
+    func stopLight(at end: Date = Date()) {
         guard mode == .light else { return }
         mode = .off
         anchor = nil
@@ -162,8 +208,17 @@ final class DayCoach {
         due = nil
         lightIsAuto = false
         lightPlaceID = nil
+        log.close(.study, at: end)
         Notifier.cancel(ids: Self.checkInIDs)
         defaults.removeObject(forKey: lightKey)
+    }
+
+    /// The user opened the app: a sign of life, so study mode gets its full
+    /// span again.
+    func extendLight(now: Date = Date()) {
+        guard mode == .light, let endsAt = lightEndsAt, now <= endsAt else { return }
+        lightEndsAt = now.addingTimeInterval(Self.lightSpan)
+        persistLight()
     }
 
     /// The check-ins fired as notifications while the app was asleep. Bring
@@ -171,7 +226,7 @@ final class DayCoach {
     private func catchUpLight(now: Date) {
         guard mode == .light, let start = anchor, let endsAt = lightEndsAt else { return }
         if now > endsAt {
-            stopLight()
+            stopLight(at: endsAt)
             return
         }
         let step = intervalSeconds
@@ -207,6 +262,7 @@ final class DayCoach {
         input.placeName = here?.displayName
         input.savedKinds = Set(config.places.map { $0.kind })
         input.locationKnown = power.isLocationTrusted
+        input.recentPain = log.recentPain(now: now)
         input.doneToday = store.routinesDone()
         input.maxSlots = Self.checkInIDs.count
 
@@ -242,12 +298,18 @@ final class DayCoach {
         }
     }
 
-    /// The app may have been closed while reminders were on.
+    /// The app may have been closed while study mode was on.
     private func restoreLight() {
         guard let data = defaults.data(forKey: lightKey),
-              let state = try? JSONDecoder().decode(LightState.self, from: data) else { return }
+              let state = try? JSONDecoder().decode(LightState.self, from: data) else {
+            // No study mode on record. A sitting span that is still open
+            // belongs to a session the app did not survive.
+            log.closeOrphanedStudy()
+            return
+        }
         guard state.endsAt > Date() else {
             defaults.removeObject(forKey: lightKey)
+            log.close(.study, at: state.endsAt)
             return
         }
         mode = .light
@@ -257,35 +319,49 @@ final class DayCoach {
         rotation = state.rotation
         lightIsAuto = state.auto
         lightPlaceID = state.placeID
+        log.open(.study, at: state.anchor)
     }
 
     // MARK: Tracking session
 
     func trackingStarted(now: Date = Date()) {
-        if mode == .light { stopLight() }
+        if mode == .light { stopLight(at: now) }
         mode = .tracking
         anchor = now
         sittingSince = now
         rotation = 0
         due = nil
+        log.open(.study, at: now)
+        lastStudyTouchAt = now
         refresh(now: now)
     }
 
-    func trackingEnded() {
+    func trackingEnded(now: Date = Date()) {
         guard mode == .tracking else { return }
         mode = .off
         anchor = nil
         due = nil
+        log.close(.study, at: now)
         Notifier.clearDelivered(ids: [Notifier.liveCheckInID])
+        refresh(now: now)
     }
 
-    /// Called once a second by the running session.
+    /// Called once a second by the running session while the user sits.
     func tick(now: Date = Date()) {
         guard mode == .tracking, let anchor else { return }
         if let fired = due, now.timeIntervalSince(fired.at) > Self.dueLifetime { due = nil }
         guard now.timeIntervalSince(anchor) >= intervalSeconds else { return }
         let minutes = CheckInPlanner.roundedMinutes(from: sittingSince, to: now, atLeast: settings.value.checkInMinutes)
         fire(.timer(minutes: minutes), now: now)
+    }
+
+    /// Called once a second by the running session, sitting or not. Keeps
+    /// the sitting span's "last seen" fresh, so a session the app does not
+    /// survive still ends at the right time.
+    func heartbeat(now: Date = Date()) {
+        guard mode == .tracking, now.timeIntervalSince(lastStudyTouchAt) >= 60 else { return }
+        lastStudyTouchAt = now
+        log.touchStudy(at: now)
     }
 
     /// The posture engine saw fatigue. That is a check-in too, and the timer
@@ -321,6 +397,68 @@ final class DayCoach {
         ))
     }
 
+    // MARK: Quiet notifications
+
+    /// A real arrival at home (a geofence crossing, not "already there").
+    func noteHomeArrival(at date: Date = Date()) {
+        defaults.set(date.timeIntervalSince1970, forKey: homeArrivalKey)
+    }
+
+    private func storedDate(_ key: String) -> Date? {
+        let stamp = defaults.double(forKey: key)
+        return stamp > 0 ? Date(timeIntervalSince1970: stamp) : nil
+    }
+
+    /// The pain question before bed and the calm suggestions at home. Laid
+    /// out for the coming days, so they arrive even if the app is not
+    /// opened; leaving home takes the home ones back.
+    private func scheduleAmbient(now: Date) {
+        let config = settings.value
+        var input = AmbientPlanner.Input()
+        input.now = now
+        input.language = config.coachLanguage
+        input.painCheckOn = config.painCheckEnabled
+        input.bedMinutes = config.bedMinutes
+        input.painDays = Set(log.pain.keys)
+        input.homeSuggestionsOn = config.homeSuggestionsEnabled
+        input.isHome = context.situation == .home
+        input.leavingIsNoticed = power.hasAlwaysAccess
+        input.studyModeOn = mode != .off
+        input.homeArrivalAt = storedDate(homeArrivalKey)
+        input.lastHomeRoutineAt = lastHomeRoutineAt()
+        input.plannedDaySlot = storedDate(daySlotKey)
+        input.doneToday = store.routinesDone()
+        input.lastDone = lastDone()
+        input.events = calendar.events
+        input.recentPain = log.recentPain(now: now)
+
+        let planned = AmbientPlanner.plan(input)
+        for item in planned {
+            Notifier.schedule(
+                title: item.title,
+                body: item.body,
+                id: item.id,
+                at: item.date,
+                routineID: item.routineID,
+                painDay: item.painDay,
+                sound: item.painDay != nil,
+                wallClock: true
+            )
+        }
+        let used = Set(planned.map { $0.id })
+        let unused = AmbientPlanner.allIDs.filter { !used.contains($0) }
+        if !unused.isEmpty { Notifier.cancel(ids: unused) }
+
+        // Remember today's daytime suggestion, so there is only one a day.
+        if let today = planned.first(where: { $0.id == "home-day-0" }) {
+            defaults.set(today.date.timeIntervalSince1970, forKey: daySlotKey)
+        } else if let stored = storedDate(daySlotKey), stored > now {
+            // It was taken back before it fired (the user left home), so it
+            // does not count as today's suggestion.
+            defaults.removeObject(forKey: daySlotKey)
+        }
+    }
+
     // MARK: Shared
 
     /// A routine was finished (suggested or picked by hand).
@@ -328,7 +466,7 @@ final class DayCoach {
         let wasSuggested = due == nil && suggestion?.routine.id == routine.id
         due = nil
         if wasSuggested { rotation += 1 }
-        Notifier.clearDelivered(ids: Self.checkInIDs + [Notifier.liveCheckInID])
+        Notifier.clearDelivered(ids: Self.checkInIDs + [Notifier.liveCheckInID] + AmbientPlanner.homeIDs)
         if mode != .off {
             anchor = now
             sittingSince = now
@@ -343,6 +481,12 @@ final class DayCoach {
     func dismissDue() {
         due = nil
         Notifier.clearDelivered(ids: [Notifier.liveCheckInID])
+    }
+
+    /// The pain question was answered.
+    func painAnswered() {
+        Notifier.clearDelivered(ids: AmbientPlanner.painIDs)
+        refresh()
     }
 
     /// The phone left a saved place.

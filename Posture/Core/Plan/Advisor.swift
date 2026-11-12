@@ -6,6 +6,10 @@ struct Advice: Equatable, Sendable {
         case plain, home, library, lecture
         case gymSoon(minutes: Int)
         case afterGym, evening
+        /// A calm suggestion at home, outside study mode. No timer behind it.
+        case homeRelaxed
+        /// Pain was high last night: only gentle work.
+        case gentle
     }
 
     var routine: Routine
@@ -41,7 +45,11 @@ enum Advisor {
             return Advice(routine: RoutineCatalog.lectureReset, note: .lecture)
 
         case .home:
-            if let minutes = context.gymInMinutes {
+            if context.needsGentle {
+                // Pain was high last night: nothing that loads the back.
+                cycle = [RoutineCatalog.eyeReset, RoutineCatalog.downshift, RoutineCatalog.standUp, RoutineCatalog.spineFlow]
+                note = .gentle
+            } else if let minutes = context.gymInMinutes {
                 // Mobility is a fine warm-up. Strength is saved for the gym,
                 // and nothing that makes sleepy.
                 cycle = [RoutineCatalog.eyeReset, RoutineCatalog.spineFlow, RoutineCatalog.standUp]
@@ -84,6 +92,44 @@ enum Advisor {
             return candidate
         }
         return RoutineCatalog.eyeReset
+    }
+
+    /// The calm suggestion for home, outside study mode: one floor routine
+    /// for back or nervous system, chosen by what was done least recently.
+    /// Nothing is timed here and nothing has to be done.
+    static func homePick(for context: DayContext, hour: Int, doneToday: Set<String> = [], lastDone: [String: Date] = [:]) -> Advice {
+        if context.needsGentle {
+            return Advice(routine: leastRecent([RoutineCatalog.spineFlow, RoutineCatalog.downshift], doneToday: doneToday, lastDone: lastDone), note: .gentle)
+        }
+        if let minutes = context.gymInMinutes {
+            return Advice(routine: RoutineCatalog.spineFlow, note: .gymSoon(minutes: minutes))
+        }
+        if context.afterGym {
+            return Advice(routine: RoutineCatalog.downshift, note: .afterGym)
+        }
+        if hour >= 20 || hour < 5 {
+            let routine = doneToday.contains(RoutineCatalog.downshift.id) ? RoutineCatalog.spineFlow : RoutineCatalog.downshift
+            return Advice(routine: routine, note: .evening)
+        }
+        let candidates = [RoutineCatalog.spineFlow, RoutineCatalog.backStrength, RoutineCatalog.nerveGlide]
+        return Advice(routine: leastRecent(candidates, doneToday: doneToday, lastDone: lastDone), note: .homeRelaxed)
+    }
+
+    /// The candidate that was done longest ago; never done comes first.
+    /// Once-a-day routines that are done today are left out.
+    static func leastRecent(_ candidates: [Routine], doneToday: Set<String>, lastDone: [String: Date]) -> Routine {
+        let open = candidates.filter { !($0.oncePerDay && doneToday.contains($0.id)) }
+        let pool = open.isEmpty ? candidates : open
+        var best = pool.first ?? RoutineCatalog.spineFlow
+        var bestDate = lastDone[best.id] ?? .distantPast
+        for candidate in pool.dropFirst() {
+            let date = lastDone[candidate.id] ?? .distantPast
+            if date < bestDate {
+                best = candidate
+                bestDate = date
+            }
+        }
+        return best
     }
 
     /// Whether a routine may be started in this situation. The floor work is
@@ -138,7 +184,7 @@ enum AdviceText {
             return ""
         case .home:
             guard advice.routine.homeOnly else { return "" }
-            return de ? "Du bist zuhause, also ab auf den Boden." : "You're home, so use the floor."
+            return de ? "Du bist zuhause, also gern auf dem Boden." : "You're home, so use the floor if you like."
         case .library:
             if advice.routine.id == RoutineCatalog.standUp.id {
                 return de ? "Kurz raus aus dem Lesesaal." : "Step out of the reading room for a moment."
@@ -154,6 +200,10 @@ enum AdviceText {
             return de ? "Nach dem Training: runterfahren statt nachlegen." : "After training: wind down instead of adding more."
         case .evening:
             return de ? "Abends lieber runterfahren." : "It's evening: time to wind down."
+        case .homeRelaxed:
+            return de ? "Ganz in Ruhe, kein Muss." : "No rush, only if you feel like it."
+        case .gentle:
+            return de ? "Wegen der Schmerzen heute nur Sanftes." : "Because of the pain, only gentle work today."
         }
     }
 
@@ -185,6 +235,7 @@ enum CheckInPlanner {
         var placeName: String?
         var savedKinds: Set<PlaceKind> = []
         var locationKnown = false
+        var recentPain: Int?
         var doneToday: Set<String> = []
         var calendar = Calendar.current
         var maxSlots = 10
@@ -214,6 +265,7 @@ enum CheckInPlanner {
             query.placeName = input.placeName
             query.savedKinds = input.savedKinds
             query.locationKnown = input.locationKnown
+            query.recentPain = input.recentPain
             let context = DayPlanner.resolve(query)
             let hour = input.calendar.component(.hour, from: date)
             guard let advice = Advisor.advice(for: context, hour: hour, index: input.rotation + k - 1, doneToday: input.doneToday) else {

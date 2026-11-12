@@ -37,6 +37,8 @@ struct ProfileSheet: View {
                 coachSection(settings)
                 toleranceSection(settings)
                 dayPlanSection(settings)
+                eveningSection(settings)
+                siriSection
                 arrivalSection(settings)
 
                 SectionLabel("Places")
@@ -56,7 +58,8 @@ struct ProfileSheet: View {
         // The plan follows the calendar switch and the word lists as they
         // are edited.
         .onChange(of: app.settings.value.calendarEnabled) { _, _ in app.settingsChanged() }
-        .onChange(of: app.settings.value.uniKeywords) { _, _ in app.settingsChanged() }
+        .onChange(of: app.settings.value.libraryKeywords) { _, _ in app.settingsChanged() }
+        .onChange(of: app.settings.value.homeKeywords) { _, _ in app.settingsChanged() }
         .onChange(of: app.settings.value.gymKeywords) { _, _ in app.settingsChanged() }
         .onChange(of: scenePhase) { _, phase in
             // Coming back from the Settings app, where a better voice may
@@ -181,7 +184,8 @@ struct ProfileSheet: View {
 
     private func dayPlanSection(_ settings: SettingsStore) -> some View {
         let found = app.calendar.events
-        let uniCount = found.filter { $0.kind == .uni }.count
+        let libraryCount = found.filter { $0.kind == .library }.count
+        let homeCount = found.filter { $0.kind == .home }.count
         let gymCount = found.filter { $0.kind == .gym }.count
         return Card {
             VStack(alignment: .leading, spacing: 14) {
@@ -198,7 +202,7 @@ struct ProfileSheet: View {
                     }
                     .tint(Theme.mint)
                 }
-                Text("After that long without a break the coach says what is needed: quiet and seated in a lecture or the library, light before the gym, and the floor routines for back and nervous system only at home.")
+                Text("After that long without a break the coach says what is needed: quiet and seated in the library, light before the gym, and the floor routines for back and nervous system only at home.")
                     .font(.ui(13))
                     .foregroundStyle(Theme.textDim)
                     .fixedSize(horizontal: false, vertical: true)
@@ -217,7 +221,7 @@ struct ProfileSheet: View {
                 .tint(Theme.teal)
                 if settings.value.calendarEnabled {
                     if app.calendar.hasAccess {
-                        Text("Next 24 hours: \(uniCount) university, \(gymCount) gym. The location check has the last word.")
+                        Text("Next 24 hours: \(libraryCount) library study, \(homeCount) home study, \(gymCount) gym. Everything else in your calendar is ignored. The location check has the last word.")
                             .font(.ui(13))
                             .foregroundStyle(Theme.textDim)
                             .fixedSize(horizontal: false, vertical: true)
@@ -233,9 +237,10 @@ struct ProfileSheet: View {
                                 .multilineTextAlignment(.leading)
                         }
                     }
-                    keywordField("Words that mean university", text: settings.binding(\.uniKeywords))
-                    keywordField("Words that mean gym", text: settings.binding(\.gymKeywords))
-                    Text("Matched against the title, the location and the calendar name of an entry. Separate words with commas.")
+                    keywordField("Title for studying at the library", text: settings.binding(\.libraryKeywords))
+                    keywordField("Title for studying at home", text: settings.binding(\.homeKeywords))
+                    keywordField("Titles that mean gym", text: settings.binding(\.gymKeywords))
+                    Text("Only the title of an entry is read. Lectures, rooms and everything else are ignored. Separate several with commas.")
                         .font(.ui(12))
                         .foregroundStyle(Theme.textFaint)
                         .fixedSize(horizontal: false, vertical: true)
@@ -267,6 +272,85 @@ struct ProfileSheet: View {
             }
         } else {
             Task { await app.calendar.requestAccess() }
+        }
+    }
+
+    // MARK: Evening and home
+
+    private func eveningSection(_ settings: SettingsStore) -> some View {
+        let bedtime = Binding<Date>(
+            get: { Fmt.minutesToDate(settings.value.bedMinutes) },
+            set: { newValue in settings.update { $0.bedMinutes = Fmt.dateToMinutes(newValue) } }
+        )
+        return Card {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionLabel("Evening & home")
+                Toggle(isOn: settings.binding(\.painCheckEnabled)) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Ask about pain before bed")
+                            .font(.ui(15, .medium))
+                            .foregroundStyle(Theme.text)
+                        Text("A notification at bedtime. Press and hold it for a quick answer, or tap it for the scale from 0 to 10.")
+                            .font(.ui(13))
+                            .foregroundStyle(Theme.textDim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .tint(Theme.teal)
+                HStack {
+                    Text("Bedtime")
+                        .font(.ui(15, .medium))
+                        .foregroundStyle(Theme.text)
+                    Spacer()
+                    DatePicker("Bedtime", selection: bedtime, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                        .tint(Theme.mint)
+                }
+                Rectangle().fill(Theme.stroke).frame(height: 1)
+                Toggle(isOn: settings.binding(\.homeSuggestionsEnabled)) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Calm suggestions at home")
+                            .font(.ui(15, .medium))
+                            .foregroundStyle(Theme.text)
+                        Text("At most two a day while you are home and not in study mode: one in the afternoon, one an hour before bed. A routine for back or nervous system, without sound. Nothing you have to do.")
+                            .font(.ui(13))
+                            .foregroundStyle(Theme.textDim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .tint(Theme.teal)
+            }
+        }
+    }
+
+    // MARK: Siri
+
+    private var siriSection: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionLabel("Study mode with Siri")
+                Text("At home, only the time in study mode counts as sitting. In a library the whole stay counts.")
+                    .font(.ui(13))
+                    .foregroundStyle(Theme.textDim)
+                    .fixedSize(horizontal: false, vertical: true)
+                siriStep("1", "Works right away: \"Hey Siri, mach Lernmodus an in Posture\".")
+                siriStep("2", "For the short sentence, open the Shortcuts app, tap +, add the action \"Lernmodus starten\" from Posture and name the shortcut \"Mach Lernmodus an\".")
+                siriStep("3", "Do the same with \"Lernmodus beenden\" to switch it off by voice.")
+            }
+        }
+    }
+
+    private func siriStep(_ number: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(number)
+                .font(.ui(12, .bold))
+                .foregroundStyle(Theme.mint)
+                .frame(width: 22, height: 22)
+                .background(Theme.mint.opacity(0.12), in: Circle())
+            Text(text)
+                .font(.ui(13))
+                .foregroundStyle(Theme.text)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -324,7 +408,10 @@ struct ProfileSheet: View {
                 Button("Load a sample week") { app.store.loadSampleWeek() }
                     .font(.ui(15, .medium))
                     .foregroundStyle(Theme.mint)
-                Button("Erase journal") { app.store.eraseAll() }
+                Button("Erase journal") {
+                    app.store.eraseAll()
+                    app.log.eraseAll()
+                }
                     .font(.ui(15, .medium))
                     .foregroundStyle(Theme.red)
                 Button("Run onboarding again") {

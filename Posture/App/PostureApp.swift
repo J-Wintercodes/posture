@@ -6,7 +6,9 @@ struct PostureApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        _app = State(initialValue: AppModel())
+        // One model for the screens and for Siri (App Intents), which can
+        // launch the app in the background without any window.
+        _app = State(initialValue: AppModel.shared)
     }
 
     var body: some Scene {

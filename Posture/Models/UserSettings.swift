@@ -145,15 +145,15 @@ enum ArrivalAction: String, Codable, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .nothing: return "Nothing"
-        case .reminders: return "Reminders"
+        case .reminders: return "Study mode"
         case .tracking: return "Tracking"
         }
     }
 
     var detail: String {
         switch self {
-        case .nothing: return "Nothing starts on its own. You start reminders or tracking when you want."
-        case .reminders: return "Timed check-ins start when you arrive and stop when you leave. No sensors, next to no battery."
+        case .nothing: return "Nothing starts on its own. You start study mode or tracking when you want."
+        case .reminders: return "Study mode (timed check-ins) starts when you arrive and stops when you leave. No sensors, next to no battery."
         case .tracking: return "Posture tracking starts when you arrive with AirPods in. This is the mode that costs battery."
         }
     }
@@ -176,12 +176,21 @@ struct UserSettings: Codable {
     var seenLockHint = false
     /// Minutes of sitting between two check-ins.
     var checkInMinutes = 30
-    /// Read the iPhone calendar to know about lectures and the gym.
+    /// Read the iPhone calendar to know about study blocks and the gym.
     var calendarEnabled = true
-    /// Comma separated words that mark a calendar entry as university.
-    var uniKeywords = EventClassifier.defaultUniKeywords
+    /// Comma separated titles that mean "studying at the library".
+    var libraryKeywords = EventClassifier.defaultLibraryKeywords
+    /// Comma separated titles that mean "studying at home".
+    var homeKeywords = EventClassifier.defaultHomeKeywords
     /// Comma separated words that mark a calendar entry as gym.
     var gymKeywords = EventClassifier.defaultGymKeywords
+    /// Ask about pain before bed.
+    var painCheckEnabled = true
+    /// Minutes since midnight of that question. Also the end of the day for
+    /// the calm suggestions at home.
+    var bedMinutes = 22 * 60 + 30
+    /// At most two calm routine suggestions a day while at home.
+    var homeSuggestionsEnabled = true
 
     var tuning: PostureTuning {
         var t = PostureTuning()
@@ -192,7 +201,9 @@ struct UserSettings: Codable {
     enum CodingKeys: String, CodingKey {
         case onboardingDone, useCase, places, arrivalAction, minBatteryForAutoStart
         case feedback, coachLanguage, coachVoiceID, readingTolerance, dailyGoalMinutes
-        case baseline, seenLockHint, checkInMinutes, calendarEnabled, uniKeywords, gymKeywords
+        case baseline, seenLockHint, checkInMinutes, calendarEnabled
+        case libraryKeywords, homeKeywords, gymKeywords = "gymTitleKeywords"
+        case painCheckEnabled, bedMinutes, homeSuggestionsEnabled
     }
 }
 
@@ -218,8 +229,12 @@ extension UserSettings {
         if let v = try? c.decodeIfPresent(Bool.self, forKey: .seenLockHint) { seenLockHint = v }
         if let v = try? c.decodeIfPresent(Int.self, forKey: .checkInMinutes) { checkInMinutes = v }
         if let v = try? c.decodeIfPresent(Bool.self, forKey: .calendarEnabled) { calendarEnabled = v }
-        if let v = try? c.decodeIfPresent(String.self, forKey: .uniKeywords) { uniKeywords = v }
+        if let v = try? c.decodeIfPresent(String.self, forKey: .libraryKeywords) { libraryKeywords = v }
+        if let v = try? c.decodeIfPresent(String.self, forKey: .homeKeywords) { homeKeywords = v }
         if let v = try? c.decodeIfPresent(String.self, forKey: .gymKeywords) { gymKeywords = v }
+        if let v = try? c.decodeIfPresent(Bool.self, forKey: .painCheckEnabled) { painCheckEnabled = v }
+        if let v = try? c.decodeIfPresent(Int.self, forKey: .bedMinutes) { bedMinutes = v }
+        if let v = try? c.decodeIfPresent(Bool.self, forKey: .homeSuggestionsEnabled) { homeSuggestionsEnabled = v }
 
         // Builds before the arrival picker had a plain on/off switch. Keep
         // an "off" as "nothing starts on its own".
