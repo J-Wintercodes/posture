@@ -5,9 +5,9 @@ import SwiftUI
 struct LiveSessionView: View {
     @Environment(AppModel.self) private var app
     @State private var glow = false
-    @State private var showReset = false
 
     var body: some View {
+        @Bindable var app = app
         let session = app.session
         let live = session.snapshot
         ZStack {
@@ -39,8 +39,8 @@ struct LiveSessionView: View {
         .onAppear {
             withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { glow = true }
         }
-        .sheet(isPresented: $showReset) {
-            ResetExerciseView()
+        .sheet(item: $app.activeRoutine) { routine in
+            RoutinePlayerView(routine: routine)
                 .environment(app)
                 .preferredColorScheme(.dark)
         }
@@ -210,20 +210,19 @@ struct LiveSessionView: View {
 
     @ViewBuilder
     private var banner: some View {
-        if let reason = app.session.breakSuggestion {
+        if let due = app.day.due {
             Card(padding: 16) {
                 VStack(alignment: .leading, spacing: 10) {
-                    SectionLabel("Theo suggests a reset", color: Theme.amber)
-                    Text(breakLine(reason))
+                    SectionLabel("Time for: \(due.advice.routine.name.en)", color: Theme.amber)
+                    Text(AdviceText.body(due.advice, trigger: due.trigger, language: .en))
                         .font(.ui(14))
                         .foregroundStyle(Theme.textDim)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 10) {
-                        smallButton("Start 30s reset", filled: true) {
-                            app.session.holdForExercise(seconds: 40)
-                            showReset = true
+                        smallButton("Start · \(due.advice.routine.durationLabel)", filled: true) {
+                            app.open(due.advice.routine)
                         }
-                        smallButton("Not now", filled: false) { app.session.dismissBreakSuggestion() }
+                        smallButton("Not now", filled: false) { app.day.dismissDue() }
                     }
                 }
             }
@@ -252,14 +251,6 @@ struct LiveSessionView: View {
                     }
                 }
             }
-        }
-    }
-
-    private func breakLine(_ reason: BreakReason) -> String {
-        switch reason {
-        case .fatigueTrend: return "Your posture has been fading for a few minutes. Thirty seconds now saves the next hour."
-        case .repeatedSlouch: return "You keep sinking back in. A short reset works better than another reminder."
-        case .longSit: return "You've been sitting for a long stretch. Stand up, or take the 30 second reset."
         }
     }
 

@@ -176,35 +176,21 @@ struct ScoreBadge: View {
     }
 }
 
-/// Round profile button with the amber streak flame.
+/// Round profile button.
 struct ProfileButton: View {
-    let streak: Int
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            ZStack(alignment: .bottomTrailing) {
-                Circle()
-                    .fill(Theme.card)
-                    .overlay(Circle().strokeBorder(Theme.stroke, lineWidth: 1))
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(Theme.textDim)
-                    )
-                    .frame(width: 42, height: 42)
-                HStack(spacing: 1) {
-                    Image(systemName: "flame.fill").font(.system(size: 8, weight: .bold))
-                    if streak > 0 {
-                        Text("\(streak)").font(.ui(9, .bold))
-                    }
-                }
-                .foregroundStyle(.black)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 3)
-                .background(Theme.amber, in: Capsule())
-                .offset(x: 5, y: 4)
-            }
+            Circle()
+                .fill(Theme.card)
+                .overlay(Circle().strokeBorder(Theme.stroke, lineWidth: 1))
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Theme.textDim)
+                )
+                .frame(width: 42, height: 42)
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel("Profile and settings")
@@ -226,7 +212,7 @@ struct ScreenHeader: View {
                     .foregroundStyle(Theme.text)
             }
             Spacer()
-            ProfileButton(streak: app.store.streak) { app.showProfile = true }
+            ProfileButton { app.showProfile = true }
         }
         .padding(.top, 8)
     }
@@ -244,7 +230,7 @@ struct SoonBadge: View {
     }
 }
 
-/// Scroll container shared by the four tabs: dark background and room for
+/// Scroll container shared by the tabs: dark background and room for
 /// the floating tab bar at the bottom.
 struct TabScroll<Content: View>: View {
     @ViewBuilder var content: () -> Content

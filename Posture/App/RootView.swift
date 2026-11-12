@@ -19,7 +19,7 @@ struct RootView: View {
 }
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case home, insights, tracker, social
+    case home, insights, tracker
 
     var id: String { rawValue }
 
@@ -27,8 +27,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         switch self {
         case .home: return "Home"
         case .insights: return "Insights"
-        case .tracker: return "Tracker"
-        case .social: return "Social"
+        case .tracker: return "Journal"
         }
     }
 
@@ -37,7 +36,6 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .home: return "house.fill"
         case .insights: return "chart.xyaxis.line"
         case .tracker: return "calendar"
-        case .social: return "person.2.fill"
         }
     }
 }
@@ -54,7 +52,6 @@ struct MainShell: View {
                 case .home: HomeView()
                 case .insights: InsightsView()
                 case .tracker: TrackerView()
-                case .social: SocialView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -67,12 +64,12 @@ struct MainShell: View {
                 .environment(app)
                 .preferredColorScheme(.dark)
         }
-        .sheet(isPresented: $app.showReset) {
-            ResetExerciseView()
+        .sheet(item: shellRoutine) { routine in
+            RoutinePlayerView(routine: routine)
                 .environment(app)
                 .preferredColorScheme(.dark)
         }
-        .sheet(isPresented: $app.showProfile) {
+        .sheet(isPresented: $app.showProfile, onDismiss: { app.settingsChanged() }) {
             ProfileSheet()
                 .environment(app)
                 .preferredColorScheme(.dark)
@@ -82,6 +79,17 @@ struct MainShell: View {
                 .environment(app)
                 .preferredColorScheme(.dark)
         }
+    }
+}
+
+extension MainShell {
+    /// The live screen covers this one and shows routines itself, so while
+    /// it is up the sheet here stays closed.
+    fileprivate var shellRoutine: Binding<Routine?> {
+        Binding(
+            get: { app.showLive ? nil : app.activeRoutine },
+            set: { app.activeRoutine = $0 }
+        )
     }
 }
 
@@ -118,6 +126,6 @@ struct FloatingTabBar: View {
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Theme.stroke, lineWidth: 1))
         .shadow(color: .black.opacity(0.5), radius: 18, y: 8)
-        .padding(.horizontal, 34)
+        .padding(.horizontal, 48)
     }
 }

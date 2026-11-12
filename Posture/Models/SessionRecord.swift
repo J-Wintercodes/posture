@@ -49,7 +49,7 @@ struct DaySummary: Identifiable {
 
     var goodFraction: Double { scored > 0 ? good / scored : 0 }
 
-    /// A day counts for the streak once five minutes were tracked.
+    /// A day shows as tracked once five minutes were scored.
     var isActive: Bool { scored >= 5 * 60 }
 
     var minutes: [MinuteBucket] {

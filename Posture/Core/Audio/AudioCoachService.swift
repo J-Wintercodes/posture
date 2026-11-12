@@ -34,6 +34,11 @@ final class AudioCoachService: NSObject {
     func beginSession() throws {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        // The silent keep-alive needs no low latency. A long buffer means the
+        // audio thread wakes about ten times a second instead of a hundred,
+        // which is most of what this engine costs while the phone is locked.
+        // iOS treats it as a wish and may pick a shorter one.
+        try? session.setPreferredIOBufferDuration(0.1)
         try session.setActive(true)
         wireIfNeeded()
         try startEngine()
@@ -122,6 +127,13 @@ final class AudioCoachService: NSObject {
 
     func deliver(_ cue: CoachCue) {
         variant += 1
+        // A check-in always leaves a notification as well, whatever the
+        // feedback mode: it says what is needed (a chime cannot) and tapping
+        // it on the Lock Screen opens the routine.
+        if case .checkIn(_, let title, let body, let routineID) = cue {
+            Notifier.post(title: title, body: body, id: Notifier.liveCheckInID, sound: false, routineID: routineID)
+            if mode == .silent { return }
+        }
         switch mode {
         case .silent:
             if let note = CoachScript.notification(for: cue, language: language) {
@@ -183,6 +195,29 @@ final class AudioCoachService: NSObject {
         say(CoachScript.preview(language: language), delay: 0)
     }
 
+    /// Reads a routine step aloud. Works without a running session, so the
+    /// floor exercises can be followed without looking at the phone. Only in
+    /// voice mode.
+    func speak(_ text: String) {
+        guard mode == .voice else { return }
+        if !isActive {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try? session.setActive(true)
+        }
+        speech.stopSpeaking(at: .immediate)
+        say(text, delay: 0.15)
+    }
+
+    /// Stops reading and, when no session is running, lets go of the audio
+    /// session again so nothing stays powered for nothing.
+    func stopSpeaking() {
+        speech.stopSpeaking(at: .immediate)
+        if !isActive {
+            try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        }
+    }
+
     // MARK: Chimes
 
     private struct Note {
@@ -219,7 +254,7 @@ final class AudioCoachService: NSObject {
             gain = 0.17
         case .uprightSet:
             notes = [Note(659.25, 0, 0.35), Note(880, 0.12, 0.7)]
-        case .breakSuggested:
+        case .checkIn:
             notes = [Note(523.25, 0, 0.6), Note(392, 0.25, 0.6), Note(523.25, 0.5, 1.0)]
         }
         if let buffer = render(notes, gain: gain) {

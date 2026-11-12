@@ -13,6 +13,10 @@ import UIKit
 /// A locked phone never counts as in use, however much it moves (pocket,
 /// bag, a wobbly desk). And every signal expires on its own, so a missed
 /// system notification can never keep the coach quiet for a whole session.
+///
+/// Because a locked phone never counts, its motion sensors are only switched
+/// on while it is unlocked. For most of a session the phone lies locked on
+/// the desk and this service then costs nothing.
 @MainActor
 @Observable
 final class PhoneContextService {
@@ -53,20 +57,32 @@ final class PhoneContextService {
         observe(center, UIApplication.willResignActiveNotification) { $0.isAppActive = false }
         observe(center, UIApplication.protectedDataDidBecomeAvailableNotification) { $0.isUnlocked = true }
         observe(center, UIApplication.protectedDataWillBecomeUnavailableNotification) { $0.isUnlocked = !$0.hasPasscode }
-
-        guard motion.isDeviceMotionAvailable else { return }
-        motion.deviceMotionUpdateInterval = 0.1
-        motion.startDeviceMotionUpdates(to: .main) { [weak self] frame, _ in
-            guard let self, let frame else { return }
-            let r = frame.rotationRate
-            let a = frame.userAcceleration
-            let rot = (r.x * r.x + r.y * r.y + r.z * r.z).squareRoot()
-            let acc = (a.x * a.x + a.y * a.y + a.z * a.z).squareRoot()
-            let flat = abs(frame.gravity.z)
-            let t = frame.timestamp
-            MainActor.assumeIsolated { self.ingest(rotation: rot, acceleration: acc, flatness: flat, at: t) }
-        }
         #endif
+    }
+
+    /// Runs the phone's motion sensors only while they can matter: the
+    /// service is on and the phone is unlocked.
+    private func syncMotion() {
+        let wanted = isRunning && isUnlocked
+        if wanted, !motion.isDeviceMotionActive {
+            guard motion.isDeviceMotionAvailable else { return }
+            rotation = 0
+            acceleration = 0
+            motion.deviceMotionUpdateInterval = 0.2
+            motion.startDeviceMotionUpdates(to: .main) { [weak self] frame, _ in
+                guard let self, let frame else { return }
+                let r = frame.rotationRate
+                let a = frame.userAcceleration
+                let rot = (r.x * r.x + r.y * r.y + r.z * r.z).squareRoot()
+                let acc = (a.x * a.x + a.y * a.y + a.z * a.z).squareRoot()
+                let flat = abs(frame.gravity.z)
+                let t = frame.timestamp
+                MainActor.assumeIsolated { self.ingest(rotation: rot, acceleration: acc, flatness: flat, at: t) }
+            }
+        } else if !wanted, motion.isDeviceMotionActive {
+            motion.stopDeviceMotionUpdates()
+            isMoving = false
+        }
     }
 
     func stop() {
@@ -107,8 +123,10 @@ final class PhoneContextService {
 
     private func ingest(rotation rot: Double, acceleration acc: Double, flatness: Double, at t: TimeInterval) {
         lastMotionFrameAt = Date()
-        rotation += 0.3 * (rot - rotation)
-        acceleration += 0.3 * (acc - acceleration)
+        // Five frames a second instead of ten; the stronger smoothing step
+        // keeps the same reaction time as before.
+        rotation += 0.5 * (rot - rotation)
+        acceleration += 0.5 * (acc - acceleration)
         let restingFlat = flatness > 0.96 && rotation < 0.03 && acceleration < 0.012
         if !restingFlat, rotation > 0.06 || acceleration > 0.025 {
             lastHandledAt = t
@@ -121,6 +139,7 @@ final class PhoneContextService {
     }
 
     private func publish() {
+        syncMotion()
         var next = PhoneContext()
         next.isAppActive = isAppActive
         next.isUnlocked = isUnlocked

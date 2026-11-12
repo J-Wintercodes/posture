@@ -1,7 +1,9 @@
 import Foundation
 import Observation
+import UIKit
 
-/// What the live screen draws. Published at most ~12 times a second.
+/// What the live screen draws. Published at most ~12 times a second while
+/// the app is on screen, once a second behind the lock screen.
 struct LiveSnapshot: Equatable {
     var pitch = 0.0
     var roll = 0.0
@@ -35,7 +37,6 @@ final class SessionManager {
     private(set) var phase: Phase = .idle
     private(set) var snapshot = LiveSnapshot()
     private(set) var elapsed: TimeInterval = 0
-    private(set) var breakSuggestion: BreakReason?
     private(set) var uprightSetAt: Date?
     private(set) var isAutoStarted = false
 
@@ -47,6 +48,7 @@ final class SessionManager {
     @ObservationIgnored private let phone: PhoneContextService
     @ObservationIgnored private let power: LocationAndPowerGuard
     @ObservationIgnored private let coach: AudioCoachService
+    @ObservationIgnored private let day: DayCoach
     @ObservationIgnored private let lockScreenCard: LiveActivityController
 
     @ObservationIgnored private var engine = PostureEngine()
@@ -60,18 +62,25 @@ final class SessionManager {
     @ObservationIgnored private var pausedAt: Date?
     @ObservationIgnored private var minuteOfDay = 0
     @ObservationIgnored private var secondsSinceCheckpoint = 0
+    @ObservationIgnored private var isForeground = true
 
     /// A paused session is closed after this long so nothing idles forever.
-    private let maxPause: TimeInterval = 15 * 60
+    /// With the AirPods out the silent audio engine is all that still runs,
+    /// and it is the expensive part, so that wait is the shorter one.
+    private func maxPause(for reason: PauseReason) -> TimeInterval {
+        reason == .lowPower ? 15 * 60 : 8 * 60
+    }
 
     init(settings: SettingsStore, store: SessionStore, headphones: HeadphoneMotionService,
-         phone: PhoneContextService, power: LocationAndPowerGuard, coach: AudioCoachService) {
+         phone: PhoneContextService, power: LocationAndPowerGuard, coach: AudioCoachService,
+         day: DayCoach) {
         self.settings = settings
         self.store = store
         self.headphones = headphones
         self.phone = phone
         self.power = power
         self.coach = coach
+        self.day = day
         self.lockScreenCard = LiveActivityController()
     }
 
@@ -94,22 +103,26 @@ final class SessionManager {
 
         engine = PostureEngine(tuning: config.tuning, anchor: config.baseline)
         fatigue = FatigueMonitor()
+        // Long sitting is the day coach's job now: it checks in on a timer
+        // and knows what fits the place and the calendar.
+        fatigue.longSitSeconds = .infinity
         var placeName: String?
         if case .auto(let name) = trigger { placeName = name }
         isAutoStarted = placeName != nil
         draft = SessionDraft(start: Date(), placeName: placeName, autoStarted: isAutoStarted)
         snapshot = LiveSnapshot()
         elapsed = 0
-        breakSuggestion = nil
         uprightSetAt = nil
         lastFrameAt = Date()
         minuteOfDay = Self.minuteOfDay(Date())
         secondsSinceCheckpoint = 0
+        isForeground = UIApplication.shared.applicationState == .active
 
         listener = headphones.addListener { [weak self] sample in self?.ingest(sample) }
         holdStream(true)
         phone.start()
         phase = .live
+        day.trackingStarted()
 
         ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
@@ -141,7 +154,7 @@ final class SessionManager {
         coach.endSession()
         lockScreenCard.end()
         phase = .idle
-        breakSuggestion = nil
+        day.trackingEnded()
     }
 
     /// What the Lock Screen card shows right now.
@@ -181,14 +194,9 @@ final class SessionManager {
         coach.deliver(.uprightSet)
     }
 
-    func dismissBreakSuggestion() {
-        breakSuggestion = nil
-    }
-
-    /// Keeps the coach quiet while a guided reset is on screen.
+    /// Keeps the coach quiet while a guided routine is on screen.
     func holdForExercise(seconds: Double) {
         engine.hold(seconds: seconds)
-        breakSuggestion = nil
     }
 
     // MARK: Battery guard
@@ -220,6 +228,10 @@ final class SessionManager {
 
     private func resume() {
         guard case .paused(let reason) = phase else { return }
+        // AirPods out for a few minutes was a break from sitting.
+        if reason == .headphonesOut, let pausedAt, Date().timeIntervalSince(pausedAt) > 120 {
+            day.noteBreak()
+        }
         phase = .live
         pausedAt = nil
         lastFrameAt = Date()
@@ -257,17 +269,22 @@ final class SessionManager {
                 coach.deliver(.nudge(kind, level: level))
             case .recovered:
                 coach.deliver(.recovered)
-            case .away, .returned, .rebaselined:
+            case .returned:
+                // Got up and came back: the sitting clock starts again.
+                day.noteBreak()
+            case .away, .rebaselined:
                 break
             }
         }
         if let reason = fatigue.ingest(reading) {
             draft?.breaks += 1
-            breakSuggestion = reason
-            coach.deliver(.breakSuggested(reason))
+            day.fatigue(reason)
         }
 
-        if sample.t - lastPublishT >= 0.08 || sample.t < lastPublishT {
+        // Nobody is looking while the phone is locked: one update a second
+        // is enough for the Lock Screen card.
+        let publishGap = isForeground ? 0.08 : 1.0
+        if sample.t - lastPublishT >= publishGap || sample.t < lastPublishT {
             lastPublishT = sample.t
             let next = LiveSnapshot(
                 pitch: reading.pitch,
@@ -286,6 +303,7 @@ final class SessionManager {
         let now = Date()
         elapsed = now.timeIntervalSince(draft.start)
         minuteOfDay = Self.minuteOfDay(now)
+        isForeground = UIApplication.shared.applicationState == .active
         headphones.checkStreamHealth()
         phone.refresh()
 
@@ -301,14 +319,18 @@ final class SessionManager {
         case .live:
             if now.timeIntervalSince(lastFrameAt) > 6 {
                 pause(.headphonesOut)
+            } else if snapshot.context != .away, snapshot.context != .moving {
+                // No check-in while the user is on their feet anyway. Coming
+                // back restarts the sitting clock.
+                day.tick(now: now)
             }
             secondsSinceCheckpoint += 1
             if secondsSinceCheckpoint >= 30, draft.scored >= 20 {
                 secondsSinceCheckpoint = 0
                 store.upsert(draft.record(end: now))
             }
-        case .paused:
-            if let pausedAt, now.timeIntervalSince(pausedAt) > maxPause {
+        case .paused(let reason):
+            if let pausedAt, now.timeIntervalSince(pausedAt) > maxPause(for: reason) {
                 end()
             }
         case .idle:

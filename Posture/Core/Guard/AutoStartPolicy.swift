@@ -1,7 +1,10 @@
 import Foundation
 
-/// The auto-start rule as a pure function, so it can be tested without
-/// CoreLocation or a battery.
+/// The rule for starting posture tracking on arrival, as a pure function so
+/// it can be tested without CoreLocation or a battery.
+///
+/// There is no weekly schedule any more: tracking starts on its own only at
+/// a library, and only if the user chose that in the profile.
 enum AutoStartPolicy {
     struct Input {
         var enabled = true
@@ -12,18 +15,15 @@ enum AutoStartPolicy {
         var isCharging = false
         var minBattery = 0.2
         var now = Date()
-        var workStartMinutes = 510
-        var workEndMinutes = 1080
-        var workDays: Set<Int> = [2, 3, 4, 5, 6]
+        /// Name of the library the phone is at, nil when it is at none.
         var placeName: String?
         var headphonesConnected = false
         var snoozedUntil: Date?
-        var calendar = Calendar.current
     }
 
     enum Block: Equatable {
         case lowPowerMode, lowBattery, disabled, sessionActive, snoozed
-        case notAtFocusPlace, outsideWorkHours, noHeadphones
+        case notAtFocusPlace, noHeadphones
     }
 
     enum Decision: Equatable {
@@ -42,15 +42,7 @@ enum AutoStartPolicy {
         guard !input.sessionActive else { return .blocked(.sessionActive) }
         if let until = input.snoozedUntil, input.now < until { return .blocked(.snoozed) }
         guard let place = input.placeName else { return .blocked(.notAtFocusPlace) }
-        guard isWorkTime(input) else { return .blocked(.outsideWorkHours) }
         guard input.headphonesConnected else { return .blocked(.noHeadphones) }
         return .start(placeName: place)
-    }
-
-    static func isWorkTime(_ input: Input) -> Bool {
-        let parts = input.calendar.dateComponents([.weekday, .hour, .minute], from: input.now)
-        guard let weekday = parts.weekday, input.workDays.contains(weekday) else { return false }
-        let minute = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-        return minute >= input.workStartMinutes && minute < input.workEndMinutes
     }
 }

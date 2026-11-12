@@ -2,11 +2,14 @@ import CoreLocation
 import Observation
 import UIKit
 
-/// Geofences for the focus places plus the battery guard.
+/// Geofences for the saved places plus the battery guard.
 ///
-/// Region monitoring wakes the app in the background when the user arrives;
-/// the power side reports Low Power Mode and battery level so that sessions
-/// neither start nor keep sampling when the phone is short on energy.
+/// Region monitoring wakes the app in the background when the user arrives
+/// or leaves. It runs on cell towers and Wi-Fi, not GPS, so it costs next to
+/// nothing. While the app is open a single location fix double-checks which
+/// place the phone is really at. The power side reports Low Power Mode and
+/// battery level so that sessions neither start nor keep sampling when the
+/// phone is short on energy.
 @MainActor
 @Observable
 final class LocationAndPowerGuard: NSObject {
@@ -17,14 +20,25 @@ final class LocationAndPowerGuard: NSObject {
     private(set) var insidePlaceIDs: Set<String> = []
 
     @ObservationIgnored var onArrival: ((String) -> Void)?
+    @ObservationIgnored var onDeparture: ((String) -> Void)?
+    /// The set of places the phone is inside changed.
+    @ObservationIgnored var onPlacesChange: (() -> Void)?
     @ObservationIgnored var onPowerStateChange: (() -> Void)?
 
     @ObservationIgnored private let manager = CLLocationManager()
     @ObservationIgnored private var locationWaiters: [(CLLocation?) -> Void] = []
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    @ObservationIgnored private var lastFixRequestAt = Date.distantPast
+    @ObservationIgnored private var lastFixAt = Date.distantPast
 
     var hasAlwaysAccess: Bool { authorization == .authorizedAlways }
     var hasAnyAccess: Bool { authorization == .authorizedAlways || authorization == .authorizedWhenInUse }
+
+    /// True when "not inside any saved place" can be believed: geofences are
+    /// live in the background, or a location fix was taken a moment ago.
+    var isLocationTrusted: Bool {
+        hasAlwaysAccess || Date().timeIntervalSince(lastFixAt) < 10 * 60
+    }
 
     override init() {
         super.init()
@@ -112,12 +126,48 @@ final class LocationAndPowerGuard: NSObject {
         }
     }
 
+    /// Asks iOS again which geofences the phone is inside. Cheap; the
+    /// answers arrive through the delegate.
+    func refreshStates() {
+        for region in manager.monitoredRegions {
+            manager.requestState(for: region)
+        }
+    }
+
+    /// The location check behind the calendar: one fix at hundred-metre
+    /// accuracy, compared against the saved places. Called when the app is
+    /// opened, at most once every few minutes.
+    func verifyPosition(places: [FocusPlace], minGap: TimeInterval = 180) {
+        guard hasAnyAccess, !places.isEmpty else { return }
+        guard Date().timeIntervalSince(lastFixRequestAt) >= minGap else { return }
+        lastFixRequestAt = Date()
+        currentLocation { [weak self] location in
+            guard let self, let location,
+                  location.horizontalAccuracy >= 0, location.horizontalAccuracy <= 300 else { return }
+            self.lastFixAt = Date()
+            let slack = min(location.horizontalAccuracy, 100)
+            for place in places {
+                let center = CLLocation(latitude: place.latitude, longitude: place.longitude)
+                let inside = location.distance(from: center) <= max(place.radius, 80) + slack
+                self.setInside(place.id.uuidString, inside, announce: false)
+            }
+            // Also tell listeners when nothing moved: "at none of the
+            // places" has just become trustworthy.
+            self.onPlacesChange?()
+        }
+    }
+
+    /// `announce` marks a real geofence crossing, which is reported even if
+    /// the set did not change (the app may have been relaunched for it).
     fileprivate func setInside(_ id: String, _ inside: Bool, announce: Bool) {
         if inside {
             let isNew = insidePlaceIDs.insert(id).inserted
+            if isNew { onPlacesChange?() }
             if isNew || announce { onArrival?(id) }
         } else {
-            insidePlaceIDs.remove(id)
+            let wasInside = insidePlaceIDs.remove(id) != nil
+            if wasInside { onPlacesChange?() }
+            if wasInside || announce { onDeparture?(id) }
         }
     }
 
@@ -139,7 +189,7 @@ extension LocationAndPowerGuard: CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         let id = region.identifier
-        Task { @MainActor in self.setInside(id, false, announce: false) }
+        Task { @MainActor in self.setInside(id, false, announce: true) }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {

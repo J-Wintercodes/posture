@@ -1,12 +1,14 @@
+import CoreLocation
 import SwiftUI
 
-/// First-launch setup: use case, focus hours, focus places, permissions and
-/// the first calibration.
+/// First-launch setup: use case, places, permissions and the first
+/// calibration. There is no schedule to fill in: tracking and reminders
+/// start when the user wants them.
 struct OnboardingFlow: View {
     @Environment(AppModel.self) private var app
     @State private var step = 0
 
-    private let stepCount = 5
+    private let stepCount = 4
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,9 +19,8 @@ struct OnboardingFlow: View {
             Group {
                 switch step {
                 case 0: UseCaseStep()
-                case 1: HoursStep()
-                case 2: PlacesStep()
-                case 3: PermissionsStep()
+                case 1: PlacesStep()
+                case 2: PermissionsStep()
                 default: CalibrationView(embedded: true, onDone: finish)
                 }
             }
@@ -69,6 +70,7 @@ struct OnboardingFlow: View {
     private func finish() {
         app.settings.update { $0.onboardingDone = true }
         app.power.sync(places: app.settings.value.places)
+        app.settingsChanged()
     }
 }
 
@@ -110,7 +112,7 @@ private struct UseCaseStep: View {
     var body: some View {
         let current = app.settings.value.useCase
         StepPage(
-            eyebrow: "Step 1 of 5",
+            eyebrow: "Step 1 of 4",
             title: "When does your posture suffer most?",
             subtitle: "This sets what the coach watches first. You can change it later."
         ) {
@@ -151,87 +153,42 @@ private struct UseCaseStep: View {
     }
 }
 
-// MARK: 2. Focus hours
+// MARK: 2. Places
 
-private struct HoursStep: View {
-    @Environment(AppModel.self) private var app
-
-    /// Monday first, as Calendar weekday numbers.
-    private let weekdays: [(Int, String)] = [(2, "M"), (3, "T"), (4, "W"), (5, "T"), (6, "F"), (7, "S"), (1, "S")]
-
-    var body: some View {
-        let settings = app.settings
-        StepPage(
-            eyebrow: "Step 2 of 5",
-            title: "When do you usually focus?",
-            subtitle: "Sessions only start on their own inside this window. Outside it the app stays asleep."
-        ) {
-            Card {
-                VStack(spacing: 14) {
-                    timeRow("From", minutes: settings.binding(\.workStartMinutes))
-                    Rectangle().fill(Theme.stroke).frame(height: 1)
-                    timeRow("Until", minutes: settings.binding(\.workEndMinutes))
-                }
-            }
-            SectionLabel("On these days")
-                .padding(.top, 10)
-            HStack(spacing: 8) {
-                ForEach(weekdays.indices, id: \.self) { index in
-                    let weekday = weekdays[index].0
-                    let letter = weekdays[index].1
-                    let isOn = settings.value.workDays.contains(weekday)
-                    Button {
-                        settings.update { value in
-                            if isOn {
-                                value.workDays.remove(weekday)
-                            } else {
-                                value.workDays.insert(weekday)
-                            }
-                        }
-                    } label: {
-                        Text(letter)
-                            .font(.ui(14, .semibold))
-                            .foregroundStyle(isOn ? .black : Theme.textDim)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 42)
-                            .background(isOn ? Theme.mint : Theme.card, in: Circle())
-                            .overlay(Circle().strokeBorder(isOn ? Color.clear : Theme.stroke, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private func timeRow(_ label: String, minutes: Binding<Int>) -> some View {
-        let date = Binding<Date>(
-            get: { Fmt.minutesToDate(minutes.wrappedValue) },
-            set: { minutes.wrappedValue = Fmt.dateToMinutes($0) }
-        )
-        return HStack {
-            Text(label)
-                .font(.ui(16, .medium))
-                .foregroundStyle(Theme.text)
-            Spacer()
-            DatePicker("", selection: date, displayedComponents: .hourAndMinute)
-                .labelsHidden()
-                .tint(Theme.mint)
-        }
-    }
-}
-
-// MARK: 3. Focus places
-
+/// The saved places: as many as needed (two libraries are two places), each
+/// captured by standing there and tapping its kind.
 struct PlacesEditor: View {
     @Environment(AppModel.self) private var app
     @State private var busy: PlaceKind? = nil
     @State private var note: String? = nil
 
+    private let addable: [PlaceKind] = [.library, .home, .uni, .gym]
+    /// iOS watches at most 20 regions per app. Stay well below.
+    private let maxPlaces = 12
+
     var body: some View {
+        let places = app.settings.value.places
         VStack(alignment: .leading, spacing: 12) {
-            ForEach([PlaceKind.library, PlaceKind.home], id: \.self) { kind in
-                row(kind)
+            ForEach(places) { place in
+                savedRow(place)
             }
+            if places.isEmpty {
+                Text("Nothing saved yet.")
+                    .font(.ui(14))
+                    .foregroundStyle(Theme.textFaint)
+            }
+
+            SectionLabel("Add the place you are at now")
+                .padding(.top, 6)
+            HStack(spacing: 8) {
+                ForEach(addable) { kind in
+                    addButton(kind, places: places)
+                }
+            }
+            Text("Go there, then tap what it is. Each library is saved on its own, so tap Library once in the first and once in the second.")
+                .font(.ui(13))
+                .foregroundStyle(Theme.textDim)
+                .fixedSize(horizontal: false, vertical: true)
             if let note {
                 Text(note)
                     .font(.ui(13))
@@ -241,43 +198,77 @@ struct PlacesEditor: View {
         }
     }
 
-    private func row(_ kind: PlaceKind) -> some View {
-        let saved = app.settings.value.places.first { $0.kind == kind }
+    private func shortName(_ kind: PlaceKind) -> String {
+        kind == .uni ? "Uni" : kind.defaultName
+    }
+
+    private func savedRow(_ place: FocusPlace) -> some View {
+        let isHere = app.power.insidePlaceIDs.contains(place.id.uuidString)
         return HStack(spacing: 14) {
-            Image(systemName: kind.icon)
+            Image(systemName: place.kind.icon)
                 .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(saved == nil ? Theme.textDim : Theme.mint)
+                .foregroundStyle(Theme.mint)
                 .frame(width: 44, height: 44)
                 .background(Color.white.opacity(0.05), in: Circle())
             VStack(alignment: .leading, spacing: 3) {
-                Text(kind.defaultName)
+                TextField(place.kind.defaultName, text: nameBinding(place))
                     .font(.ui(16, .semibold))
                     .foregroundStyle(Theme.text)
-                Text(saved == nil ? "Not set" : "Saved · 120 m around this spot")
+                    .submitLabel(.done)
+                Text(isHere
+                     ? "\(shortName(place.kind)) · you are here"
+                     : "\(shortName(place.kind)) · 120 m around the spot")
                     .font(.ui(13))
-                    .foregroundStyle(Theme.textDim)
+                    .foregroundStyle(isHere ? Theme.mint : Theme.textDim)
             }
             Spacer(minLength: 0)
-            if busy == kind {
-                ProgressView().tint(Theme.mint)
-            } else if let saved {
-                Button("Remove") {
-                    app.savePlaces(app.settings.value.places.filter { $0.id != saved.id })
-                }
-                .font(.ui(13, .semibold))
-                .foregroundStyle(Theme.textDim)
-            } else {
-                Button("I'm here now") { capture(kind) }
-                    .font(.ui(13, .semibold))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.white, in: Capsule())
+            Button("Remove") {
+                app.savePlaces(app.settings.value.places.filter { $0.id != place.id })
             }
+            .font(.ui(13, .semibold))
+            .foregroundStyle(Theme.textDim)
         }
         .padding(16)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Theme.stroke, lineWidth: 1))
+    }
+
+    private func nameBinding(_ place: FocusPlace) -> Binding<String> {
+        Binding(
+            get: {
+                let current = app.settings.value.places.first(where: { $0.id == place.id })
+                return current?.name ?? place.name
+            },
+            set: { app.renamePlace(id: place.id, to: $0) }
+        )
+    }
+
+    private func addButton(_ kind: PlaceKind, places: [FocusPlace]) -> some View {
+        let taken = !kind.allowsSeveral && places.contains(where: { $0.kind == kind })
+        return Button {
+            capture(kind)
+        } label: {
+            VStack(spacing: 6) {
+                if busy == kind {
+                    ProgressView()
+                        .tint(Theme.mint)
+                        .frame(height: 18)
+                } else {
+                    Image(systemName: taken ? "checkmark" : kind.icon)
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(height: 18)
+                }
+                Text(shortName(kind))
+                    .font(.ui(12, .semibold))
+            }
+            .foregroundStyle(taken ? Theme.textFaint : Theme.text)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Theme.cardRaised, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.stroke, lineWidth: 1))
+        }
+        .buttonStyle(PressableStyle())
+        .disabled(taken || busy != nil)
     }
 
     private func capture(_ kind: PlaceKind) {
@@ -287,6 +278,10 @@ struct PlacesEditor: View {
             note = "Allow location access in the prompt, then tap again."
             return
         }
+        guard app.settings.value.places.count < maxPlaces else {
+            note = "That is the most places the app can watch. Remove one first."
+            return
+        }
         busy = kind
         app.power.currentLocation { location in
             busy = nil
@@ -294,9 +289,19 @@ struct PlacesEditor: View {
                 note = "Could not get a location fix. Try again near a window."
                 return
             }
-            var places = app.settings.value.places.filter { $0.kind != kind }
+            var places = app.settings.value.places
+            let clash = places.first(where: { (saved: FocusPlace) -> Bool in
+                let center = CLLocation(latitude: saved.latitude, longitude: saved.longitude)
+                return location.distance(from: center) < max(saved.radius, 80)
+            })
+            if let clash {
+                note = "This spot is already covered by \"\(clash.displayName)\". Remove that one first if it is wrong."
+                return
+            }
+            let sameKind = places.filter { $0.kind == kind }.count
+            let name = sameKind == 0 ? kind.defaultName : "\(kind.defaultName) \(sameKind + 1)"
             places.append(FocusPlace(
-                name: kind.defaultName,
+                name: name,
                 kind: kind,
                 latitude: location.coordinate.latitude,
                 longitude: location.coordinate.longitude
@@ -309,16 +314,16 @@ struct PlacesEditor: View {
 private struct PlacesStep: View {
     var body: some View {
         StepPage(
-            eyebrow: "Step 3 of 5",
-            title: "Where do you focus?",
-            subtitle: "Save a place while you are there. When you arrive with AirPods in, during your focus hours, a session starts by itself. You can also add places later in your profile."
+            eyebrow: "Step 2 of 4",
+            title: "Where do you spend your day?",
+            subtitle: "Save a place while you are there: your home and every library you use. The coach checks your location against them, so it knows what fits where. The floor exercises are only offered at home. You can add places later in your profile."
         ) {
             PlacesEditor()
         }
     }
 }
 
-// MARK: 4. Permissions
+// MARK: 3. Permissions
 
 private struct PermissionsStep: View {
     @Environment(AppModel.self) private var app
@@ -328,23 +333,23 @@ private struct PermissionsStep: View {
         let motionOn = app.headphones.authorization == .authorized
         let locationOn = app.power.hasAlwaysAccess
         StepPage(
-            eyebrow: "Step 4 of 5",
-            title: "Three permissions, each for one reason",
+            eyebrow: "Step 3 of 4",
+            title: "Four permissions, each for one reason",
             subtitle: "Nothing leaves your phone. There is no camera and no account."
         ) {
             permissionRow(
-                icon: "airpodspro",
-                title: "Motion & Fitness",
-                detail: "Reads the motion sensors in your AirPods. This is how posture is measured.",
-                isOn: motionOn,
+                icon: "calendar",
+                title: "Calendar",
+                detail: "Reads your iPhone calendar, including subscribed iCal feeds, to know about lectures and the gym. Read only.",
+                isOn: app.calendar.hasAccess,
                 actionTitle: "Allow"
             ) {
-                app.headphones.requestAuthorization()
+                Task { await app.calendar.requestAccess() }
             }
             permissionRow(
                 icon: "location.fill",
                 title: "Location · Always",
-                detail: "Only to notice that you arrived at a focus place. Asked in two steps by iOS.",
+                detail: "Checks which of your saved places you are at, because the calendar is not always right. Asked in two steps by iOS.",
                 isOn: locationOn,
                 actionTitle: app.power.hasAnyAccess ? "Upgrade" : "Allow"
             ) {
@@ -353,11 +358,20 @@ private struct PermissionsStep: View {
             permissionRow(
                 icon: "bell.fill",
                 title: "Notifications",
-                detail: "Tells you when a session started on its own, and carries silent nudges to your Watch.",
+                detail: "Carries the check-ins. In reminders-only mode they are all there is.",
                 isOn: notificationsOn,
                 actionTitle: "Allow"
             ) {
                 Task { notificationsOn = await Notifier.requestAuthorization() }
+            }
+            permissionRow(
+                icon: "airpodspro",
+                title: "Motion & Fitness",
+                detail: "Reads the motion sensors in your AirPods. Only needed for posture tracking.",
+                isOn: motionOn,
+                actionTitle: "Allow"
+            ) {
+                app.headphones.requestAuthorization()
             }
         }
         .task { notificationsOn = await Notifier.isAuthorized() }

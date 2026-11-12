@@ -6,7 +6,9 @@ enum CoachCue: Equatable {
     case sessionEnded
     case nudge(NudgeKind, level: Int)
     case recovered
-    case breakSuggested(BreakReason)
+    /// A check-in from the day coach: what is needed now. The texts are
+    /// already in the coach language.
+    case checkIn(spoken: String, title: String, body: String, routineID: String)
     case pausedLowPower
     case resumed
     case uprightSet
@@ -30,12 +32,13 @@ enum CoachScript {
     /// Title and body for the silent channel. Nil when a cue is not worth a
     /// notification.
     static func notification(for cue: CoachCue, language: CoachLanguage) -> (title: String, body: String)? {
+        if case .checkIn(_, let title, let body, _) = cue {
+            return (title, body)
+        }
         guard let body = line(for: cue, language: language, variant: 0) else { return nil }
         switch cue {
         case .nudge:
             return (language == .de ? "Haltung" : "Posture", body)
-        case .breakSuggested:
-            return (language == .de ? "Kurze Pause?" : "Time for a reset?", body)
         case .pausedLowPower:
             return (language == .de ? "Session pausiert" : "Session paused", body)
         default:
@@ -57,21 +60,8 @@ enum CoachScript {
             return nudgeLines(kind, firm: level > 1, de: de)
         case .recovered:
             return []
-        case .breakSuggested(let reason):
-            switch reason {
-            case .fatigueTrend:
-                return [de
-                    ? "Deine Haltung lässt seit ein paar Minuten nach. Dreißig Sekunden Reset?"
-                    : "Your posture has been fading for a few minutes. Thirty second reset?"]
-            case .repeatedSlouch:
-                return [de
-                    ? "Du sackst immer wieder ein. Zeit für eine kurze Pause."
-                    : "You keep sinking. Time for a short break."]
-            case .longSit:
-                return [de
-                    ? "Du sitzt schon lange. Steh kurz auf und streck dich."
-                    : "You've been sitting a long while. Stand up and stretch for a moment."]
-            }
+        case .checkIn(let spoken, _, _, _):
+            return [spoken]
         case .pausedLowPower:
             return [de ? "Stromsparmodus aktiv. Ich pausiere." : "Low Power Mode is on. I'll pause."]
         case .resumed:

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Settings behind the profile button.
 struct ProfileSheet: View {
@@ -35,9 +36,10 @@ struct ProfileSheet: View {
 
                 coachSection(settings)
                 toleranceSection(settings)
-                autoStartSection(settings)
+                dayPlanSection(settings)
+                arrivalSection(settings)
 
-                SectionLabel("Focus places")
+                SectionLabel("Places")
                 PlacesEditor()
 
                 #if DEBUG
@@ -51,6 +53,11 @@ struct ProfileSheet: View {
         .background(Theme.bg.ignoresSafeArea())
         .onAppear { reloadVoices() }
         .onChange(of: app.settings.value.coachLanguage) { _, _ in reloadVoices() }
+        // The plan follows the calendar switch and the word lists as they
+        // are edited.
+        .onChange(of: app.settings.value.calendarEnabled) { _, _ in app.settingsChanged() }
+        .onChange(of: app.settings.value.uniKeywords) { _, _ in app.settingsChanged() }
+        .onChange(of: app.settings.value.gymKeywords) { _, _ in app.settingsChanged() }
         .onChange(of: scenePhase) { _, phase in
             // Coming back from the Settings app, where a better voice may
             // just have been downloaded.
@@ -170,39 +177,134 @@ struct ProfileSheet: View {
         seconds < 60 ? "\(Int(seconds)) seconds" : "\(Int(seconds / 60)) minutes"
     }
 
-    // MARK: Auto-start
+    // MARK: Day plan
 
-    private func autoStartSection(_ settings: SettingsStore) -> some View {
-        Card {
+    private func dayPlanSection(_ settings: SettingsStore) -> some View {
+        let found = app.calendar.events
+        let uniCount = found.filter { $0.kind == .uni }.count
+        let gymCount = found.filter { $0.kind == .gym }.count
+        return Card {
             VStack(alignment: .leading, spacing: 14) {
-                SectionLabel("Auto-start")
-                Toggle(isOn: settings.binding(\.autoStartEnabled)) {
+                SectionLabel("Check-ins")
+                HStack {
+                    Text("Check in after")
+                        .font(.ui(15, .medium))
+                        .foregroundStyle(Theme.text)
+                    Spacer()
+                    Picker("Check in after", selection: settings.binding(\.checkInMinutes)) {
+                        ForEach([20, 30, 45, 60], id: \.self) { minutes in
+                            Text("\(minutes) min").tag(minutes)
+                        }
+                    }
+                    .tint(Theme.mint)
+                }
+                Text("After that long without a break the coach says what is needed: quiet and seated in a lecture or the library, light before the gym, and the floor routines for back and nervous system only at home.")
+                    .font(.ui(13))
+                    .foregroundStyle(Theme.textDim)
+                    .fixedSize(horizontal: false, vertical: true)
+                Rectangle().fill(Theme.stroke).frame(height: 1)
+                Toggle(isOn: settings.binding(\.calendarEnabled)) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Start at my focus places")
+                        Text("Use my calendar")
                             .font(.ui(15, .medium))
                             .foregroundStyle(Theme.text)
-                        Text("\(Fmt.hoursLabel(settings.value.workStartMinutes)) – \(Fmt.hoursLabel(settings.value.workEndMinutes)), with AirPods in")
+                        Text("Reads the iPhone calendar, including subscribed iCal feeds. Read only, nothing leaves the phone.")
                             .font(.ui(13))
                             .foregroundStyle(Theme.textDim)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .tint(Theme.teal)
-                Rectangle().fill(Theme.stroke).frame(height: 1)
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: app.power.isLowPowerMode ? "bolt.slash.fill" : "bolt.fill")
-                        .foregroundStyle(app.power.isLowPowerMode ? Theme.amber : Theme.mint)
-                    Text(app.power.isLowPowerMode
-                         ? "Low Power Mode is on: nothing starts on its own and a running session pauses its sensors."
-                         : "Battery guard is armed: in Low Power Mode, or below 20% without a charger, nothing starts on its own.")
-                        .font(.ui(13))
-                        .foregroundStyle(Theme.textDim)
+                if settings.value.calendarEnabled {
+                    if app.calendar.hasAccess {
+                        Text("Next 24 hours: \(uniCount) university, \(gymCount) gym. The location check has the last word.")
+                            .font(.ui(13))
+                            .foregroundStyle(Theme.textDim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Button {
+                            connectCalendar()
+                        } label: {
+                            Text(app.calendar.wasDenied
+                                 ? "Calendar access is off. Tap to allow it in the iOS Settings."
+                                 : "Tap to allow calendar access.")
+                                .font(.ui(13, .medium))
+                                .foregroundStyle(Theme.amber)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+                    keywordField("Words that mean university", text: settings.binding(\.uniKeywords))
+                    keywordField("Words that mean gym", text: settings.binding(\.gymKeywords))
+                    Text("Matched against the title, the location and the calendar name of an entry. Separate words with commas.")
+                        .font(.ui(12))
+                        .foregroundStyle(Theme.textFaint)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func keywordField(_ label: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.ui(13, .medium))
+                .foregroundStyle(Theme.textDim)
+            TextField(label, text: text, axis: .vertical)
+                .font(.ui(14))
+                .foregroundStyle(Theme.text)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Theme.cardRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+    }
+
+    private func connectCalendar() {
+        if app.calendar.wasDenied {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        } else {
+            Task { await app.calendar.requestAccess() }
+        }
+    }
+
+    // MARK: Arrival
+
+    private func arrivalSection(_ settings: SettingsStore) -> some View {
+        let action = settings.value.arrivalAction
+        return Card {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionLabel("When I arrive at a library")
+                Picker("On arrival", selection: settings.binding(\.arrivalAction)) {
+                    ForEach(ArrivalAction.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text(action.detail)
+                    .font(.ui(13))
+                    .foregroundStyle(Theme.textDim)
+                    .fixedSize(horizontal: false, vertical: true)
+                if action == .tracking {
+                    Rectangle().fill(Theme.stroke).frame(height: 1)
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: app.power.isLowPowerMode ? "bolt.slash.fill" : "bolt.fill")
+                            .foregroundStyle(app.power.isLowPowerMode ? Theme.amber : Theme.mint)
+                        Text(app.power.isLowPowerMode
+                             ? "Low Power Mode is on: tracking does not start on its own and a running session pauses its sensors."
+                             : "Battery guard is armed: in Low Power Mode, or below 20% without a charger, tracking does not start on its own.")
+                            .font(.ui(13))
+                            .foregroundStyle(Theme.textDim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 if !app.power.hasAlwaysAccess {
                     Button {
                         app.power.requestAccess()
                     } label: {
-                        Text("Arrival detection needs location set to \"Always\". Tap to allow.")
+                        Text("Noticing that you arrived or left needs location set to \"Always\". Tap to allow.")
                             .font(.ui(13, .medium))
                             .foregroundStyle(Theme.amber)
                             .multilineTextAlignment(.leading)

@@ -2,21 +2,17 @@ import XCTest
 @testable import Posture
 
 final class AutoStartPolicyTests: XCTestCase {
-    /// A Tuesday at 10:00 in the library with AirPods in: everything lines up.
+    /// At the library with AirPods in and a full battery: everything lines up.
     private func readyInput() -> AutoStartPolicy.Input {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Europe/Berlin") ?? .current
         var input = AutoStartPolicy.Input()
-        input.calendar = calendar
-        input.now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 10, minute: 0)) ?? Date()
-        input.placeName = "University / Library"
+        input.placeName = "Library"
         input.headphonesConnected = true
         input.batteryLevel = 0.8
         return input
     }
 
     func testStartsWhenEverythingLinesUp() {
-        XCTAssertEqual(AutoStartPolicy.decide(readyInput()), .start(placeName: "University / Library"))
+        XCTAssertEqual(AutoStartPolicy.decide(readyInput()), .start(placeName: "Library"))
     }
 
     func testLowPowerModeAlwaysBlocks() {
@@ -32,19 +28,23 @@ final class AutoStartPolicyTests: XCTestCase {
         input.batteryLevel = 0.12
         XCTAssertEqual(AutoStartPolicy.decide(input), .blocked(.lowBattery))
         input.isCharging = true
-        XCTAssertEqual(AutoStartPolicy.decide(input), .start(placeName: "University / Library"))
+        XCTAssertEqual(AutoStartPolicy.decide(input), .start(placeName: "Library"))
     }
 
-    func testOutsideFocusHoursBlocks() {
+    func testNoWeeklySchedule() {
+        // Late in the evening and at the weekend it still starts: there is
+        // no schedule any more, only the place and the AirPods.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Berlin") ?? .current
         var input = readyInput()
-        input.now = input.calendar.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 21, minute: 30)) ?? Date()
-        XCTAssertEqual(AutoStartPolicy.decide(input), .blocked(.outsideWorkHours))
+        input.now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 14, hour: 21, minute: 30)) ?? Date()
+        XCTAssertEqual(AutoStartPolicy.decide(input), .start(placeName: "Library"))
     }
 
-    func testWeekendBlocksByDefault() {
+    func testDisabledBlocks() {
         var input = readyInput()
-        input.now = input.calendar.date(from: DateComponents(year: 2026, month: 11, day: 14, hour: 10, minute: 0)) ?? Date()
-        XCTAssertEqual(AutoStartPolicy.decide(input), .blocked(.outsideWorkHours))
+        input.enabled = false
+        XCTAssertEqual(AutoStartPolicy.decide(input), .blocked(.disabled))
     }
 
     func testNeedsPlaceAndHeadphones() {

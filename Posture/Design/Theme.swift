@@ -103,16 +103,8 @@ enum Fmt {
         return f.string(from: date)
     }
 
-    static func minutesToDate(_ minutes: Int) -> Date {
-        Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date()
-    }
-
     static func dateToMinutes(_ date: Date) -> Int {
         let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
         return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-    }
-
-    static func hoursLabel(_ minutes: Int) -> String {
-        String(format: "%02d:%02d", minutes / 60, minutes % 60)
     }
 }

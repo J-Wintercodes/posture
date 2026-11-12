@@ -11,9 +11,7 @@ struct InsightsView: View {
             ScreenHeader(eyebrow: "The bigger picture", title: "Insights")
             forecastCard(hourly: store.hourlyProfile())
             weekCard(week)
-            rhythmCard(store.calendarWeek())
             zonesCard(store.zoneGrid(days: 7))
-            coachCard(week)
             todayInsight(today)
         }
     }
@@ -51,17 +49,19 @@ struct InsightsView: View {
         return "You tend to dip around \(lowestHour):00"
     }
 
-    // MARK: Week
+    // MARK: Last seven days
 
+    /// A look back, nothing to complete: there is no weekly target.
     private func weekCard(_ week: [DaySummary]) -> some View {
         let scores = week.compactMap { $0.score }
         let average = scores.isEmpty ? nil : scores.reduce(0, +) / scores.count
         let good = week.reduce(0) { $0 + $1.good }
-        let activeDays = week.filter { $0.isActive }.count
+        let tracked = week.reduce(0) { $0 + $1.scored }
+        let sessions = week.reduce(0) { $0 + $1.sessions.count }
         return Card {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    SectionLabel("The week")
+                    SectionLabel("Last 7 days")
                     Spacer()
                     Text(average.map { "avg \($0)" } ?? "no data yet")
                         .font(.ui(12, .semibold))
@@ -71,49 +71,9 @@ struct InsightsView: View {
                 Rectangle().fill(Theme.stroke).frame(height: 1)
                 MetricRow(items: [
                     (Fmt.duration(good), "Good time"),
-                    ("\(activeDays)/7", "Active days"),
-                    ("\(app.store.streak)d", "Streak")
+                    (Fmt.duration(tracked), "Tracked"),
+                    ("\(sessions)", "Sessions")
                 ])
-            }
-        }
-    }
-
-    // MARK: Rhythm
-
-    private func rhythmCard(_ days: [DaySummary]) -> some View {
-        let active = days.filter { $0.isActive }.count
-        let target = 5
-        let remaining = max(0, target - active)
-        return Card {
-            VStack(alignment: .leading, spacing: 16) {
-                SectionLabel("Rhythm")
-                HStack(spacing: 0) {
-                    ForEach(days) { day in
-                        VStack(spacing: 8) {
-                            ZStack {
-                                Circle()
-                                    .fill(day.isActive ? Theme.amber : Color.clear)
-                                Circle()
-                                    .strokeBorder(day.isActive ? Theme.amber : Color.white.opacity(0.14), lineWidth: 1.5)
-                                if day.isActive {
-                                    Image(systemName: "flame.fill")
-                                        .font(.system(size: 12, weight: .bold))
-                                        .foregroundStyle(.black)
-                                }
-                            }
-                            .frame(width: 32, height: 32)
-                            Text(Fmt.weekdayShort(day.date))
-                                .font(.ui(10, .semibold))
-                                .foregroundStyle(Calendar.current.isDateInToday(day.date) ? Theme.text : Theme.textFaint)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-                Text(remaining == 0
-                     ? "Week complete. Everything from here is a bonus."
-                     : "\(remaining) more \(remaining == 1 ? "day" : "days") to complete this week")
-                    .font(.serif(18, italic: true))
-                    .foregroundStyle(Theme.textDim)
             }
         }
     }
@@ -167,39 +127,6 @@ struct InsightsView: View {
             line += " You also lean to the right a lot — check where your screen and notes sit."
         }
         return line
-    }
-
-    // MARK: Coach
-
-    private func coachCard(_ week: [DaySummary]) -> some View {
-        let activeDays = week.filter { $0.isActive }.count
-        let ready = activeDays >= 3
-        return Card {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionLabel("Coach")
-                Text(ready ? "Your weekly review" : "Weekly review")
-                    .font(.serif(24))
-                    .foregroundStyle(Theme.text)
-                Text(ready ? weeklyReview(week) : "Unlocks after 3 active days. \(max(0, 3 - activeDays)) to go.")
-                    .font(.ui(14))
-                    .foregroundStyle(Theme.textDim)
-                    .fixedSize(horizontal: false, vertical: true)
-                if !ready {
-                    ThinBar(value: Double(activeDays) / 3, color: Theme.amber)
-                        .padding(.top, 4)
-                }
-            }
-        }
-    }
-
-    private func weeklyReview(_ week: [DaySummary]) -> String {
-        let active = week.filter { $0.score != nil }
-        guard let best = active.max(by: { ($0.score ?? 0) < ($1.score ?? 0) }),
-              let worst = active.min(by: { ($0.score ?? 0) < ($1.score ?? 0) }) else { return "" }
-        let nudges = week.reduce(0) { $0 + $1.nudges }
-        let bestDay = Fmt.weekdayShort(best.date)
-        let worstDay = Fmt.weekdayShort(worst.date)
-        return "Best day: \(bestDay) at \(best.score ?? 0). Toughest: \(worstDay) at \(worst.score ?? 0). Theo spoke up \(nudges) times this week."
     }
 
     // MARK: Today

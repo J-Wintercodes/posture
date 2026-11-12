@@ -1,13 +1,21 @@
 import Foundation
 import Observation
 
-/// The journal: every session and every completed reset, stored as one JSON
-/// file in Application Support, plus the queries the screens need.
+/// The journal: every session and every completed routine, stored as one
+/// JSON file in Application Support, plus the queries the screens need.
 @MainActor
 @Observable
 final class SessionStore {
     private(set) var sessions: [SessionRecord] = []
+    /// When a routine was finished, whichever it was.
     private(set) var resets: [Date] = []
+    /// Which routine was finished when. Kept for two weeks.
+    private(set) var routineLog: [RoutineEntry] = []
+
+    struct RoutineEntry: Codable, Hashable {
+        var id: String
+        var date: Date
+    }
 
     @ObservationIgnored private let url: URL
     @ObservationIgnored private let calendar = Calendar.current
@@ -15,6 +23,8 @@ final class SessionStore {
     private struct Disk: Codable {
         var sessions: [SessionRecord]
         var resets: [Date]
+        /// Optional: journals written before routines had names lack it.
+        var routines: [RoutineEntry]?
     }
 
     init(filename: String = "journal.json") {
@@ -24,6 +34,7 @@ final class SessionStore {
         if let data = try? Data(contentsOf: url), let disk = try? JSONDecoder().decode(Disk.self, from: data) {
             sessions = disk.sessions
             resets = disk.resets
+            routineLog = disk.routines ?? []
         }
     }
 
@@ -43,13 +54,16 @@ final class SessionStore {
         save()
     }
 
-    func addReset(at date: Date = Date()) {
+    func logRoutine(_ id: String, at date: Date = Date()) {
         resets.append(date)
+        routineLog.append(RoutineEntry(id: id, date: date))
+        let cutoff = date.addingTimeInterval(-14 * 24 * 3600)
+        routineLog.removeAll { $0.date < cutoff }
         save()
     }
 
     private func save() {
-        let disk = Disk(sessions: sessions, resets: resets)
+        let disk = Disk(sessions: sessions, resets: resets, routines: routineLog)
         if let data = try? JSONEncoder().encode(disk) {
             try? data.write(to: url, options: .atomic)
         }
@@ -72,34 +86,13 @@ final class SessionStore {
         }
     }
 
-    /// Monday to Sunday of the week that contains `date`.
-    func calendarWeek(containing date: Date = Date()) -> [DaySummary] {
-        var iso = Calendar(identifier: .iso8601)
-        iso.timeZone = calendar.timeZone
-        guard let interval = iso.dateInterval(of: .weekOfYear, for: date) else { return [] }
-        return (0..<7).compactMap { offset in
-            iso.date(byAdding: .day, value: offset, to: interval.start).map { summary(on: $0) }
-        }
-    }
-
-    /// Consecutive active days. Today extends the streak but does not break it.
-    var streak: Int {
-        var count = 0
-        var day = Date()
-        if !summary(on: day).isActive {
-            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: day) else { return 0 }
-            day = yesterday
-        }
-        while summary(on: day).isActive {
-            count += 1
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
-            day = previous
-        }
-        return count
-    }
-
     func resetsCount(on day: Date = Date()) -> Int {
         resets.filter { calendar.isDate($0, inSameDayAs: day) }.count
+    }
+
+    /// Ids of the routines finished on `day`.
+    func routinesDone(on day: Date = Date()) -> Set<String> {
+        Set(routineLog.filter { calendar.isDate($0.date, inSameDayAs: day) }.map { $0.id })
     }
 
     /// Posture zone seconds summed over the last `days` days.
@@ -145,7 +138,7 @@ final class SessionStore {
             if dayOffset == 4 { continue }
             for (startMinute, length) in [(9 * 60 + 5, 50), (14 * 60 + 20, 40)] {
                 let base = 74 + random() * 18 - (startMinute > 13 * 60 ? 6 : 0)
-                var draft = SessionDraft(start: day.addingTimeInterval(Double(startMinute) * 60), placeName: "University / Library", autoStarted: true)
+                var draft = SessionDraft(start: day.addingTimeInterval(Double(startMinute) * 60), placeName: "Library", autoStarted: false)
                 for m in 0..<length {
                     let fade = Double(m) / Double(length) * 9
                     let score = min(max(base - fade + random() * 8 - 4, 35), 99)
@@ -171,6 +164,7 @@ final class SessionStore {
     func eraseAll() {
         sessions = []
         resets = []
+        routineLog = []
         save()
     }
     #endif

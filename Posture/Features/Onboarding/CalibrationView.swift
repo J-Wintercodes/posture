@@ -18,7 +18,7 @@ struct CalibrationView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
-                SectionLabel(embedded ? "Step 5 of 5" : "Calibration", color: Theme.mint)
+                SectionLabel(embedded ? "Step 4 of 4" : "Calibration", color: Theme.mint)
                 Text(headline)
                     .font(.serif(34))
                     .foregroundStyle(Theme.text)
