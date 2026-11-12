@@ -1,0 +1,29 @@
+name: iOS Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The .xcodeproj is not checked in; XcodeGen creates it from project.yml.
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Unsigned iOS build
+        run: xcodebuild clean build -project Posture.xcodeproj -scheme Posture -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload build directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: posture-app
+          path: ~/Library/Developer/Xcode/DerivedData/Posture-*/Build/Products
+          if-no-files-found: error
