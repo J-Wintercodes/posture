@@ -21,6 +21,8 @@ struct PostureEngine {
     private(set) var anchor: Baseline?
     private(set) var offsetForward = 0.0
     private(set) var offsetLateral = 0.0
+    /// The AirPod the frames currently come from.
+    private(set) var activeSide: SensorSide = .unknown
 
     // Filters
     private var lastT: TimeInterval?
@@ -61,6 +63,8 @@ struct PostureEngine {
     private var excursionSink = 0.0
     private var dwell = 0.0
     private var reclineFor = 0.0
+    /// The current fast excursion went deep enough to be a look-down.
+    private var isReadingDown = false
 
     // Good <-> bad state and reminders
     private var isBad = false
@@ -104,9 +108,23 @@ struct PostureEngine {
         let f = atan2(g.y, -g.z) * 180 / .pi * tuning.forwardSign
         let l = atan2(g.x, -g.z) * 180 / .pi * tuning.lateralSign
 
+        // The stream moved to the other AirPod (one was taken out, or iOS
+        // switched). Each bud sits a little differently in its ear, so its
+        // raw angles differ by several degrees. The head itself did not jump:
+        // carry the current reading over to the new bud instead of taking
+        // the difference for a slouch.
+        let sideChanged = s.side != .unknown && activeSide != .unknown && s.side != activeSide
+        if s.side != .unknown { activeSide = s.side }
+
         guard let last = lastT, s.t > last, s.t - last < 2 else {
+            if sideChanged { carryOver(forward: f, lateral: l) }
             restart(at: s.t, forward: f, lateral: l)
             return reading(t: s.t, dt: 0, context: .settling, scored: false, events: [])
+        }
+        if sideChanged {
+            carryOver(forward: f, lateral: l)
+            restart(at: s.t, forward: f, lateral: l)
+            return reading(t: s.t, dt: 0, context: .settling, scored: false, events: [.rebaselined])
         }
         let dt = min(s.t - last, 0.25)
         lastT = s.t
@@ -217,6 +235,18 @@ struct PostureEngine {
             dwell = 0
         }
 
+        // A fast nod is only a look-down while the head is deep. Dropping
+        // quickly into a moderate angle and staying there is a slump.
+        if entry == .glance {
+            if pitch >= tuning.lookDownPitch {
+                isReadingDown = true
+            } else if pitch < tuning.lookDownPitch - tuning.lookDownRelease {
+                isReadingDown = false
+            }
+        } else {
+            isReadingDown = false
+        }
+
         // 6. Context
         let context: PostureContext
         if isAway {
@@ -227,7 +257,7 @@ struct PostureEngine {
             context = .phone
         } else if s.t < settleUntil || s.t < phoneUntil {
             context = .settling
-        } else if entry == .glance {
+        } else if isReadingDown {
             context = .lookingDown
         } else {
             context = .focused
@@ -261,18 +291,22 @@ struct PostureEngine {
         case .creep, .slump:
             gain = 1
         case .ambiguous:
-            gain = 0.6
+            gain = 0.8
         case .glance:
-            let over = clamp((dwell - tuning.lookDownBudget) / tuning.lookDownRamp, 0, 1)
-            gain = 0.1 + 0.4 * over
-            kind = .neck
+            if isReadingDown {
+                let over = clamp((dwell - tuning.lookDownBudget) / tuning.lookDownRamp, 0, 1)
+                gain = 0.1 + 0.4 * over
+                kind = .neck
+            } else {
+                gain = 0.8
+            }
         }
         // A head that keeps moving is reading, writing or talking. A frozen
         // head is either concentrating or collapsed, so it counts in full.
         if entry != .none {
             if liveliness > 12 {
                 gain *= 0.5
-            } else if entry == .glance, liveliness > 4 {
+            } else if isReadingDown, liveliness > 4 {
                 gain *= 0.6
             }
         }
@@ -368,6 +402,20 @@ struct PostureEngine {
         phoneUntil = max(phoneUntil, t + 1.5)
     }
 
+    /// Re-anchors the baseline so that the current pitch and roll read the
+    /// same from the new bud's raw angles.
+    private mutating func carryOver(forward f: Double, lateral l: Double) {
+        guard let old = anchor else { return }
+        anchor = Baseline(
+            forward: f - pitch,
+            lateral: l - roll,
+            capturedAt: old.capturedAt,
+            isProvisional: old.isProvisional
+        )
+        offsetForward = 0
+        offsetLateral = 0
+    }
+
     private mutating func beginSettle(at t: TimeInterval) {
         settleUntil = t + tuning.settleSeconds
         rebasePending = true
@@ -381,6 +429,7 @@ struct PostureEngine {
         entry = .none
         entryDecideAt = nil
         dwell = 0
+        isReadingDown = false
     }
 
     private func classifyEntry() -> EntryKind {

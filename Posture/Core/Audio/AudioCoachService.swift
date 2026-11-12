@@ -149,11 +149,23 @@ final class AudioCoachService: NSObject {
         }
     }
 
-    /// Turning bad is answered by the sound alone. Theo only adds words when
-    /// the slouch is still there at the next reminder.
+    /// Posture is never an instruction, only a beep: a small low one when it
+    /// turns bad (and for the reminders while it stays bad), a brighter one
+    /// when it is good again. Theo keeps his words for check-ins and for the
+    /// start and end of a session.
     private func speaks(_ cue: CoachCue) -> Bool {
-        if case .nudge(_, let level) = cue { return level > 0 }
+        if case .nudge = cue { return false }
         return true
+    }
+
+    /// Plays the two posture beeps one after the other, so they can be
+    /// heard without having to slouch first. Needs a running session.
+    func playTestTones() {
+        playChime(for: .nudge(.slouch, level: 0))
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1.2))
+            self?.playChime(for: .recovered)
+        }
     }
 
     private func say(_ text: String, delay: TimeInterval = 0.45) {
@@ -241,17 +253,21 @@ final class AudioCoachService: NSObject {
             notes = [Note(523.25, 0, 0.5), Note(659.25, 0.14, 0.5), Note(783.99, 0.28, 0.9)]
         case .sessionEnded, .pausedLowPower:
             notes = [Note(783.99, 0, 0.5), Note(659.25, 0.14, 0.5), Note(523.25, 0.28, 0.9)]
-        case .nudge:
-            // Posture turned bad: low and falling, a minor third (F4 to D4).
-            // Clearly "down", and loud enough to be heard over music: it is
-            // the only signal when a spell begins.
-            notes = [Note(349.23, 0, 0.45), Note(293.66, 0.17, 0.90)]
-            gain = 0.30
+        case .nudge(_, let level):
+            // Posture turned bad: one small low beep (G4). A reminder while
+            // it stays bad is the same beep twice. Loud enough to be heard
+            // over music: it is the only signal.
+            if level == 0 {
+                notes = [Note(392.00, 0, 0.18)]
+            } else {
+                notes = [Note(392.00, 0, 0.16), Note(392.00, 0.22, 0.18)]
+            }
+            gain = 0.32
         case .recovered:
-            // Posture is good again: high and short, a rising fourth
-            // (G5 to C6).
-            notes = [Note(783.99, 0, 0.30), Note(1046.50, 0.11, 0.60)]
-            gain = 0.17
+            // Posture is good again: two quick notes going up a fifth
+            // (E5 to B5). Brighter and friendlier than the low beep.
+            notes = [Note(659.25, 0, 0.12), Note(987.77, 0.10, 0.26)]
+            gain = 0.22
         case .uprightSet:
             notes = [Note(659.25, 0, 0.35), Note(880, 0.12, 0.7)]
         case .checkIn:

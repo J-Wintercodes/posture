@@ -94,7 +94,7 @@ Vorgeschlagen wird die Boden-Übung, die am längsten nicht dran war. Kein Vorsc
 **Sitzzeit** wird aus genau zwei Quellen gezählt (`SittingMath`, `DayLogStore`):
 
 - Bibliothek: die ganze Aufenthaltszeit, automatisch per Geofence. Braucht Standort "Immer", sonst merkt die App das Verlassen nicht und zählt dort nur den Lernmodus.
-- Lernmodus oder Tracking, egal wo. **Zuhause zählt nur das.**
+- Lernmodus, egal wo, und Tracking, solange man dabei wirklich sitzt (siehe Punkt 10 unten). **Zuhause zählt nur das.**
 
 Überschneidungen zählen einmal. Ein vergessener Lernmodus endet nach vier Stunden ohne Lebenszeichen.
 
@@ -116,11 +116,14 @@ Alle Schwellen stehen in `Core/Posture/PostureTuning.swift`.
 
 1. **Nur Schwerkraft, kein Yaw.** Gemessen wird der Schwerkraftvektor im Kopfhörer-Koordinatensystem relativ zur kalibrierten Baseline. Stuhldrehen verändert ihn nicht.
 2. **Leichte Vorneigung zum Bildschirm ist normal.** Die Baseline ist "aufrecht, Blick geradeaus". Am Monitor oder Laptop kippt der Kopf ein paar Grad nach vorn; die ersten 6° Vorneigung (`screenLean`) zählen deshalb gar nicht. Erst danach beginnen die Bänder: gut bis 14°, Slouch ab 22° Vorneigung.
-3. **Wie der Kopf den guten Bereich verlässt, zählt mehr als der Winkel.** Schnelles Nicken (über 25°/s) ohne Absinken des Kopfes = bewusster Blick nach unten, bekommt eine lange Leine. Langsames Driften (unter 8°/s) = Einsacken. Schnelles Kippen mit Absinken = Zusammenfallen.
+3. **Wie der Kopf den guten Bereich verlässt, zählt mehr als der Winkel.** Langsames Driften (unter 8°/s) = Einsacken. Schnelles Kippen mit Absinken = Zusammenfallen. Schnelles Nicken (über 25°/s) gilt nur dann als bewusster Blick nach unten mit langer Leine, wenn der Kopf dabei tief geht (ab 26° Vorneigung, etwa Notizen auf dem Tisch). Wer schnell in eine mäßige Vorneigung fällt und dort bleibt, sackt ein, und das zählt wie Einsacken.
 4. **Slouch-Load statt Timer.** Ein undichter Integrator füllt sich je nach Schwere und Kontext und leert sich bei guter Haltung. Kurze Ausreißer (Trinken, Blick zur Seite) füllen ihn nie, wiederholte addieren sich.
-5. **Stumm bei Handy-Nutzung.** App im Vordergrund, oder iPhone entsperrt *und* in der Hand (Neigung plus Handzittern), pausiert die Wertung. Ein gesperrtes iPhone gilt nie als benutzt, egal wie es sich bewegt (Hosentasche), und ein entsperrtes, das unberührt auf dem Tisch liegt, auch nicht. Alle Signale werden jede Sekunde neu gelesen, damit keines hängen bleiben und den Coach dauerhaft stumm schalten kann.
+5. **Stumm nur, wenn das Handy in der Hand ist.** iPhone entsperrt *und* in der Hand (Neigung plus Handzittern) pausiert die Wertung. Die geöffnete App allein tut das nicht mehr: Liegt das Handy mit dem Live-Screen auf dem Tisch, kommen die Töne. Ein gesperrtes iPhone gilt nie als benutzt, egal wie es sich bewegt (Hosentasche). Alle Signale werden jede Sekunde neu gelesen, damit keines hängen bleiben und den Coach dauerhaft stumm schalten kann.
 6. **Begrenztes Auto-Zeroing.** Aufrechteres Sitzen wird schnell übernommen, Vorneigung nur sehr langsam und höchstens 4°. So kann die Baseline einen Rundrücken nie "lernen". Nach dem Aufstehen und Hinsetzen wird die neue Sitzposition innerhalb dieser Grenzen übernommen.
-7. **Zwei Töne als festes Paar.** Wird die Haltung schlecht (Slouch-Load voll), kommt immer der tiefe, fallende Ton. Ist sie wieder gut (2 Sekunden im guten Bereich), kommt immer der helle, steigende Ton. Dazwischen gibt es keinen Cooldown. Bleibt die Haltung schlecht, erinnert Theo nach 40, 80, 160 Sekunden mit Stimme; nur diese Erinnerungen dünnen aus.
+7. **Zwei Beeps als festes Paar, keine Ansage.** Wird die Haltung schlecht (Slouch-Load voll), kommt ein kleiner tiefer Beep. Ist sie wieder gut (2 Sekunden im guten Bereich), kommt ein hellerer, freundlicherer aus zwei kurzen Tönen. Dazwischen gibt es keinen Cooldown. Bleibt die Haltung schlecht, kommt nach 40, 80, 160 Sekunden derselbe tiefe Beep doppelt; gesprochen wird zur Haltung nie. Im Live-Screen spielt "Play both beeps" beide Töne zur Probe ab.
+8. **Empfindlichkeit einstellbar** (Profil, "How quickly it beeps"): Relaxed, Balanced (Standard) oder Quick, also etwa 40, 25 oder 15 Sekunden Einsacken bis zum Beep. Leichte Vorneigung zum Bildschirm (12°) bleibt in allen drei Stufen frei.
+9. **Ein AirPod oder zwei.** iOS meldet pro Messwert, welcher AirPod ihn liefert, aber nicht, ob einer oder beide im Ohr sind. Jeder AirPod sitzt etwas anders und liefert deshalb um einige Grad andere Rohwinkel. Wechselt die Quelle (ein AirPod raus, oder iOS schaltet um), übernimmt die Engine die aktuelle Kopfhaltung auf den neuen AirPod, statt den Sprung als Einsacken zu werten. Der Live-Screen zeigt, welcher AirPod gerade misst.
+10. **Sitzen wird erkannt.** Im Tracking zählt die Zeit erst als Sitzen, wenn der Körper 30 Sekunden ruhig war (rückwirkend ab Beginn der Ruhe). Wer mit AirPods herumläuft, sitzt nicht: Weggehen beendet das Zählen ab dem Moment, in dem die Bewegung begann. Stillstehen lässt sich von Sitzen nicht unterscheiden.
 
 ## Sperrbildschirm
 

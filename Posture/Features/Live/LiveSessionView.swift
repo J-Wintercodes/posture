@@ -108,10 +108,15 @@ struct LiveSessionView: View {
 
     private var pills: some View {
         let mode = app.settings.value.feedback
+        let sitting = app.session.isSitting
         return HStack(spacing: 8) {
-            pill("moon.fill", "Lock safe")
+            pill(sitting ? "checkmark.circle.fill" : "figure.walk", sitting ? "Sitting" : "Not sitting yet")
             pill(mode == .silent ? "bell.slash.fill" : "bell.fill", mode.title)
-            pill("hourglass", "\(Fmt.duration(remainingToday)) left today")
+            switch app.session.sensorSide {
+            case .left: pill("airpodspro", "Left AirPod")
+            case .right: pill("airpodspro", "Right AirPod")
+            case .unknown: pill("hourglass", "\(Fmt.duration(remainingToday)) left today")
+            }
         }
     }
 
@@ -151,6 +156,8 @@ struct LiveSessionView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 12)
             loadMeter
+            smallButton("Play both beeps", filled: false) { app.session.playTestTones() }
+                .padding(.top, 6)
         }
         .animation(.easeInOut(duration: 0.3), value: copy.title)
     }
@@ -183,7 +190,7 @@ struct LiveSessionView: View {
             let title = session.snapshot.zone == .aligned ? "Aligned" : "Live preview"
             return (title, recentlySet
                 ? "Upright set — the coach measures from here."
-                : "I stay quiet while you're on the phone.")
+                : "I stay quiet while the phone is in your hand. Put it down and the beeps are back.")
         case .moving, .away:
             return ("On the move", "Paused until you settle back in.")
         case .settling:
@@ -240,7 +247,7 @@ struct LiveSessionView: View {
                             Text("Now lock your phone.")
                                 .font(.ui(16, .semibold))
                                 .foregroundStyle(Theme.text)
-                            Text("The session keeps running. Theo speaks up only when you slouch, and stays quiet while you're using the phone.")
+                            Text("The session keeps running. A low beep means you are slouching, a brighter one means you fixed it. It stays quiet while the phone is in your hand.")
                                 .font(.ui(13))
                                 .foregroundStyle(Theme.textDim)
                                 .fixedSize(horizontal: false, vertical: true)

@@ -35,6 +35,7 @@ struct ProfileSheet: View {
                 .padding(.top, 22)
 
                 coachSection(settings)
+                sensitivitySection(settings)
                 toleranceSection(settings)
                 dayPlanSection(settings)
                 eveningSection(settings)
@@ -156,6 +157,26 @@ struct ProfileSheet: View {
         }
     }
 
+    // MARK: Sensitivity
+
+    private func sensitivitySection(_ settings: SettingsStore) -> some View {
+        Card {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionLabel("How quickly it beeps")
+                Picker("Sensitivity", selection: settings.binding(\.sensitivity)) {
+                    ForEach(Sensitivity.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text(settings.value.sensitivity.detail + " A low beep when you slouch, a brighter one when you sit well again. Applies to a running session right away.")
+                    .font(.ui(13))
+                    .foregroundStyle(Theme.textDim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
     // MARK: Reading tolerance
 
     private func toleranceSection(_ settings: SettingsStore) -> some View {
@@ -168,7 +189,7 @@ struct ProfileSheet: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                Text("A quick, deliberate look down at paper or a tablet is left alone for \(budgetLabel(settings.value.readingTolerance.budget)) before it slowly starts to count. A slow sink into the chair always counts.")
+                Text("A quick, deep look down at paper or a tablet is left alone for \(budgetLabel(settings.value.readingTolerance.budget)) before it slowly starts to count. Sinking into the chair always counts, fast or slow.")
                     .font(.ui(13))
                     .foregroundStyle(Theme.textDim)
                     .fixedSize(horizontal: false, vertical: true)

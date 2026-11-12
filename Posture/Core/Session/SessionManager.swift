@@ -39,6 +39,10 @@ final class SessionManager {
     private(set) var elapsed: TimeInterval = 0
     private(set) var uprightSetAt: Date?
     private(set) var isAutoStarted = false
+    /// True once the user has been still long enough to count as sitting.
+    private(set) var isSitting = false
+    /// The AirPod the motion currently comes from.
+    private(set) var sensorSide: SensorSide = .unknown
 
     var isRunning: Bool { phase != .idle }
 
@@ -63,6 +67,7 @@ final class SessionManager {
     @ObservationIgnored private var minuteOfDay = 0
     @ObservationIgnored private var secondsSinceCheckpoint = 0
     @ObservationIgnored private var isForeground = true
+    @ObservationIgnored private var seat = SeatTracker()
 
     /// A paused session is closed after this long so nothing idles forever.
     /// With the AirPods out the silent audio engine is all that still runs,
@@ -117,6 +122,9 @@ final class SessionManager {
         minuteOfDay = Self.minuteOfDay(Date())
         secondsSinceCheckpoint = 0
         isForeground = UIApplication.shared.applicationState == .active
+        seat = SeatTracker()
+        isSitting = false
+        sensorSide = .unknown
 
         listener = headphones.addListener { [weak self] sample in self?.ingest(sample) }
         holdStream(true)
@@ -141,6 +149,7 @@ final class SessionManager {
         listener = nil
         holdStream(false)
         phone.stop()
+        applySeat(seat.stop(now: Date()))
 
         if let draft {
             if draft.scored >= 20 {
@@ -194,6 +203,12 @@ final class SessionManager {
         coach.deliver(.uprightSet)
     }
 
+    /// Plays both posture beeps, to hear what they sound like.
+    func playTestTones() {
+        guard phase != .idle else { return }
+        coach.playTestTones()
+    }
+
     /// Keeps the coach quiet while a guided routine is on screen.
     func holdForExercise(seconds: Double) {
         engine.hold(seconds: seconds)
@@ -217,6 +232,8 @@ final class SessionManager {
         guard phase == .live else { return }
         phase = .paused(reason)
         pausedAt = Date()
+        // No motion, no sitting: the count stops here.
+        applySeat(seat.stop(now: Date()))
         if reason == .lowPower {
             // Stop every sensor. Only the silent audio session stays up so
             // the session can pick up again when Low Power Mode ends.
@@ -261,6 +278,12 @@ final class SessionManager {
 
         let reading = engine.ingest(sample, phone: phone.context)
         draft?.accumulate(reading, minuteOfDay: minuteOfDay)
+        if sample.side != sensorSide { sensorSide = sample.side }
+
+        // Sitting only counts while the body is still. Walking around with
+        // AirPods in is not sitting.
+        let away = reading.context == .away
+        applySeat(seat.update(onFeet: away || reading.context == .moving, away: away, now: lastFrameAt))
 
         for event in reading.events {
             switch event {
@@ -298,6 +321,18 @@ final class SessionManager {
         }
     }
 
+    private func applySeat(_ change: SeatTracker.Change?) {
+        guard let change else { return }
+        switch change {
+        case .sat(let since):
+            isSitting = true
+            day.sittingBegan(at: since)
+        case .left(let at):
+            isSitting = false
+            day.sittingEnded(at: at)
+        }
+    }
+
     private func tick() {
         guard let draft else { return }
         let now = Date()
@@ -312,6 +347,7 @@ final class SessionManager {
         coach.mode = config.feedback
         coach.language = config.coachLanguage
         coach.voiceID = config.coachVoiceID
+        engine.tuning = config.tuning
         // Keeps the app alive behind the lock screen.
         coach.ensureRunning()
         day.heartbeat(now: now)

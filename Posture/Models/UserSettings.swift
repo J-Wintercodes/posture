@@ -45,8 +45,8 @@ enum FeedbackMode: String, Codable, CaseIterable, Identifiable {
 
     var detail: String {
         switch self {
-        case .voice: return "Theo speaks softly in your AirPods."
-        case .chime: return "A quiet two-note tone, no words."
+        case .voice: return "Posture gets a small beep, never words. Theo only speaks for check-ins and when a session starts or ends."
+        case .chime: return "Beeps only. Nothing is ever spoken."
         case .silent: return "A notification only. Taps your wrist if you wear a Watch."
         }
     }
@@ -83,6 +83,43 @@ enum ReadingTolerance: String, Codable, CaseIterable, Identifiable {
         case .strict: return 45
         case .balanced: return 120
         case .relaxed: return 300
+        }
+    }
+}
+
+/// How quickly the coach reacts to a slouch.
+enum Sensitivity: String, Codable, CaseIterable, Identifiable {
+    case relaxed, balanced, quick
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .relaxed: return "Relaxed"
+        case .balanced: return "Balanced"
+        case .quick: return "Quick"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .relaxed: return "Beeps after roughly 40 seconds of slouching. Leaning towards the screen is always fine."
+        case .balanced: return "Beeps after roughly 25 seconds of slouching. Leaning towards the screen is always fine."
+        case .quick: return "Beeps after roughly 15 seconds of slouching, and a little earlier in angle."
+        }
+    }
+
+    func apply(to tuning: inout PostureTuning) {
+        switch self {
+        case .relaxed:
+            break
+        case .balanced:
+            tuning.screenLean = 5
+            tuning.graceSeconds = 12
+        case .quick:
+            tuning.screenLean = 5
+            tuning.goodBand = 7.5
+            tuning.graceSeconds = 7
         }
     }
 }
@@ -171,6 +208,7 @@ struct UserSettings: Codable {
     /// profile. Nil means "best installed voice".
     var coachVoiceID: String?
     var readingTolerance: ReadingTolerance = .balanced
+    var sensitivity: Sensitivity = .balanced
     var dailyGoalMinutes = 120
     var baseline: Baseline?
     var seenLockHint = false
@@ -195,6 +233,7 @@ struct UserSettings: Codable {
     var tuning: PostureTuning {
         var t = PostureTuning()
         t.lookDownBudget = readingTolerance.budget
+        sensitivity.apply(to: &t)
         return t
     }
 
@@ -203,7 +242,7 @@ struct UserSettings: Codable {
         case feedback, coachLanguage, coachVoiceID, readingTolerance, dailyGoalMinutes
         case baseline, seenLockHint, checkInMinutes, calendarEnabled
         case libraryKeywords, homeKeywords, gymKeywords = "gymTitleKeywords"
-        case painCheckEnabled, bedMinutes, homeSuggestionsEnabled
+        case painCheckEnabled, bedMinutes, homeSuggestionsEnabled, sensitivity
     }
 }
 
@@ -235,6 +274,7 @@ extension UserSettings {
         if let v = try? c.decodeIfPresent(Bool.self, forKey: .painCheckEnabled) { painCheckEnabled = v }
         if let v = try? c.decodeIfPresent(Int.self, forKey: .bedMinutes) { bedMinutes = v }
         if let v = try? c.decodeIfPresent(Bool.self, forKey: .homeSuggestionsEnabled) { homeSuggestionsEnabled = v }
+        if let v = try? c.decodeIfPresent(Sensitivity.self, forKey: .sensitivity) { sensitivity = v }
 
         // Builds before the arrival picker had a plain on/off switch. Keep
         // an "off" as "nothing starts on its own".

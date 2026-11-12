@@ -331,9 +331,23 @@ final class DayCoach {
         sittingSince = now
         rotation = 0
         due = nil
-        log.open(.study, at: now)
         lastStudyTouchAt = now
         refresh(now: now)
+    }
+
+    /// The tracked session saw the user sit down (still for half a minute).
+    /// Only from here on does it count as sitting: walking around with
+    /// AirPods in does not.
+    func sittingBegan(at date: Date) {
+        guard mode == .tracking else { return }
+        log.open(.study, at: date)
+        log.touchStudy(at: Date())
+    }
+
+    /// The user walked off, or the AirPods came out.
+    func sittingEnded(at date: Date) {
+        guard mode == .tracking else { return }
+        log.close(.study, at: date)
     }
 
     func trackingEnded(now: Date = Date()) {

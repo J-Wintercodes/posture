@@ -21,6 +21,12 @@ struct Vec3: Equatable, Sendable {
     func dot(_ o: Vec3) -> Double { x * o.x + y * o.y + z * o.z }
 }
 
+/// Which AirPod a motion frame comes from. iOS reports this per frame; it
+/// does not report whether one or both buds are in the ears.
+enum SensorSide: String, Codable, Sendable {
+    case unknown, left, right
+}
+
 /// One AirPods motion frame, already stripped of CoreMotion types.
 struct HeadSample: Sendable {
     /// Sensor timestamp in seconds (monotonic).
@@ -31,6 +37,8 @@ struct HeadSample: Sendable {
     var rotationRate: Vec3
     /// Acceleration without gravity, in g.
     var userAcceleration: Vec3
+    /// The bud that measured this frame.
+    var side: SensorSide = .unknown
 }
 
 /// What the iPhone itself is doing. Feeds phone-usage suppression.
@@ -38,11 +46,14 @@ struct PhoneContext: Equatable, Sendable {
     /// Informational. On its own it does not silence the coach: an unlocked
     /// phone that lies untouched on the desk is not being used.
     var isUnlocked = false
+    /// Informational as well. The app being on screen does not silence the
+    /// coach: a phone that lies on the desk with the live screen open is how
+    /// people watch the coach work.
     var isAppActive = false
     /// The phone is being handled, and it is not locked.
     var isHandheld = false
 
-    var isInUse: Bool { isAppActive || isHandheld }
+    var isInUse: Bool { isHandheld }
 }
 
 /// The calibrated "upright" reference: where gravity sits in the headphone
@@ -63,7 +74,7 @@ enum PostureContext: String, Codable, Sendable {
     case focused
     /// Deliberate look-down (notes, book, tablet). Scored with a long leash.
     case lookingDown
-    /// The iPhone is unlocked or in the hand. Not scored, coach is quiet.
+    /// The iPhone is unlocked and in the hand. Not scored, coach is quiet.
     case phone
     /// Short hold-off after phone use or after sitting back down.
     case settling

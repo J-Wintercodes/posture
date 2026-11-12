@@ -9,6 +9,8 @@ import Observation
 @Observable
 final class HeadphoneMotionService: NSObject {
     private(set) var isStreaming = false
+    /// The AirPod the motion frames currently come from.
+    private(set) var sensorSide: SensorSide = .unknown
     private(set) var routeName: String?
     private(set) var authorization: CMAuthorizationStatus = CMHeadphoneMotionManager.authorizationStatus()
 
@@ -114,7 +116,8 @@ final class HeadphoneMotionService: NSObject {
                 t: motion.timestamp,
                 gravity: Vec3(x: motion.gravity.x, y: motion.gravity.y, z: motion.gravity.z),
                 rotationRate: Vec3(x: motion.rotationRate.x, y: motion.rotationRate.y, z: motion.rotationRate.z),
-                userAcceleration: Vec3(x: motion.userAcceleration.x, y: motion.userAcceleration.y, z: motion.userAcceleration.z)
+                userAcceleration: Vec3(x: motion.userAcceleration.x, y: motion.userAcceleration.y, z: motion.userAcceleration.z),
+                side: mapSensorSide(motion.sensorLocation)
             )
             MainActor.assumeIsolated { self.publish(sample) }
         }
@@ -128,6 +131,7 @@ final class HeadphoneMotionService: NSObject {
         manager.stopDeviceMotionUpdates()
         #endif
         isStreaming = false
+        sensorSide = .unknown
         latest = nil
     }
 
@@ -140,6 +144,7 @@ final class HeadphoneMotionService: NSObject {
     private func publish(_ sample: HeadSample) {
         latest = sample
         lastFrameAt = Date()
+        if sample.side != sensorSide { sensorSide = sample.side }
         if !isStreaming {
             isStreaming = true
             authorization = CMHeadphoneMotionManager.authorizationStatus()
@@ -158,6 +163,15 @@ final class HeadphoneMotionService: NSObject {
         let output = AVAudioSession.sharedInstance().currentRoute.outputs.first { wireless.contains($0.portType) }
         let name = output?.portName
         if name != routeName { routeName = name }
+    }
+}
+
+/// Maps CoreMotion's "which bud" to the app's own type.
+private func mapSensorSide(_ location: CMDeviceMotion.SensorLocation) -> SensorSide {
+    switch location {
+    case .headphoneLeft: return .left
+    case .headphoneRight: return .right
+    default: return .unknown
     }
 }
 

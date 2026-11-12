@@ -233,4 +233,142 @@ final class PostureEngineTests: XCTestCase {
         XCTAssertEqual(outcome.last?.roll ?? 99, 0, accuracy: 1.0)
         XCTAssertEqual(outcome.last?.zone, .aligned)
     }
+
+    func testDroppingIntoASlouchIsNotMistakenForReading() {
+        var (engine, head, outcome) = calibrated()
+        // A quick drop into a moderate slouch that then stays there. It is
+        // as fast as a nod at the notes, but it does not go deep: a slump.
+        run(&engine, head: &head, seconds: 0.6, into: &outcome) { t in (20 * self.ease(t / 0.6), 0) }
+        run(&engine, head: &head, seconds: 60, into: &outcome) { _ in (20, 0) }
+        XCTAssertEqual(outcome.nudges.first, .slouch)
+        XCTAssertEqual(outcome.last?.context, .focused)
+        XCTAssertFalse(outcome.contexts.contains(.lookingDown))
+    }
+
+    func testAppOnScreenDoesNotSilenceTheCoach() {
+        var (engine, head, outcome) = calibrated()
+        // The phone lies on the desk with the live screen open. Nobody holds
+        // it, so the slouch must still be announced.
+        var phone = PhoneContext()
+        phone.isUnlocked = true
+        phone.isAppActive = true
+        run(&engine, head: &head, seconds: 30, phone: phone, into: &outcome) { t in (23 * t / 30, 0) }
+        run(&engine, head: &head, seconds: 40, phone: phone, into: &outcome) { _ in (23, 0) }
+        XCTAssertEqual(outcome.nudges.first, .slouch)
+        XCTAssertFalse(outcome.contexts.contains(.phone))
+    }
+
+    func testSwitchingToTheOtherAirPodIsNotASlouch() {
+        var (engine, head, outcome) = calibrated()
+        head.side = .left
+        run(&engine, head: &head, seconds: 60, into: &outcome) { _ in (3, 0) }
+        XCTAssertEqual(engine.activeSide, .left)
+
+        // The left bud comes out. The right one sits quite differently in
+        // its ear: 16 degrees more forward, 6 to the side. The head did not
+        // move, so the reading must not jump.
+        head.side = .right
+        head.restForward += 16
+        head.restLateral += 6
+        run(&engine, head: &head, seconds: 120, into: &outcome) { _ in (3, 0) }
+        XCTAssertEqual(engine.activeSide, .right)
+        XCTAssertTrue(outcome.events.contains(.rebaselined))
+        XCTAssertEqual(outcome.last?.pitch ?? 99, 3, accuracy: 3.5)
+        XCTAssertEqual(outcome.last?.roll ?? 99, 0, accuracy: 2.0)
+        XCTAssertEqual(outcome.last?.zone, .aligned)
+        XCTAssertTrue(outcome.nudges.isEmpty)
+
+        // And a slouch measured through the new bud is still a slouch.
+        run(&engine, head: &head, seconds: 30, into: &outcome) { t in (3 + 20 * t / 30, 0) }
+        run(&engine, head: &head, seconds: 60, into: &outcome) { _ in (23, 0) }
+        XCTAssertEqual(outcome.nudges.first, .slouch)
+    }
+}
+
+final class SensitivityTests: XCTestCase {
+    func testLevelsChangeHowQuicklyItBeeps() {
+        var settings = UserSettings()
+        XCTAssertEqual(settings.sensitivity, .balanced)
+        XCTAssertEqual(settings.tuning.graceSeconds, 12)
+
+        settings.sensitivity = .relaxed
+        XCTAssertEqual(settings.tuning.graceSeconds, PostureTuning().graceSeconds)
+        XCTAssertEqual(settings.tuning.screenLean, PostureTuning().screenLean)
+
+        settings.sensitivity = .quick
+        XCTAssertEqual(settings.tuning.graceSeconds, 7)
+
+        // Leaning twelve degrees towards the screen stays free at every level.
+        for level in Sensitivity.allCases {
+            settings.sensitivity = level
+            let tuning = settings.tuning
+            XCTAssertGreaterThanOrEqual(tuning.screenLean + tuning.goodBand, 12.5, "\(level)")
+        }
+    }
+}
+
+final class SeatTrackerTests: XCTestCase {
+    private let start = Date(timeIntervalSince1970: 1_800_000_000)
+
+    private func at(_ seconds: Double) -> Date {
+        start.addingTimeInterval(seconds)
+    }
+
+    /// Feeds one reading a second and collects what the tracker reports.
+    private func feed(_ seat: inout SeatTracker, from: Int, to: Int, onFeet: Bool, away: Bool = false) -> [SeatTracker.Change] {
+        var changes: [SeatTracker.Change] = []
+        for second in from...to {
+            if let change = seat.update(onFeet: onFeet, away: away, now: at(Double(second))) {
+                changes.append(change)
+            }
+        }
+        return changes
+    }
+
+    func testSittingBeginsAfterHalfAMinuteAndCountsFromItsStart() {
+        var seat = SeatTracker()
+        XCTAssertTrue(feed(&seat, from: 0, to: 29, onFeet: false).isEmpty)
+        XCTAssertFalse(seat.isSeated)
+        XCTAssertEqual(feed(&seat, from: 30, to: 40, onFeet: false), [.sat(since: at(0))])
+        XCTAssertTrue(seat.isSeated)
+    }
+
+    func testConstantMovementNeverCountsAsSitting() {
+        var seat = SeatTracker()
+        // Ten minutes on the move, standing still for ten seconds now and then.
+        for block in 0..<24 {
+            let base = block * 25
+            XCTAssertTrue(feed(&seat, from: base, to: base + 9, onFeet: false).isEmpty)
+            XCTAssertTrue(feed(&seat, from: base + 10, to: base + 24, onFeet: true).isEmpty)
+        }
+        XCTAssertFalse(seat.isSeated)
+    }
+
+    func testShiftingOnTheChairDoesNotEndSitting() {
+        var seat = SeatTracker()
+        _ = feed(&seat, from: 0, to: 60, onFeet: false)
+        XCTAssertTrue(feed(&seat, from: 61, to: 70, onFeet: true).isEmpty)
+        XCTAssertTrue(feed(&seat, from: 71, to: 200, onFeet: false).isEmpty)
+        XCTAssertTrue(seat.isSeated)
+    }
+
+    func testWalkingOffEndsSittingWhenTheMovementBegan() {
+        var seat = SeatTracker()
+        _ = feed(&seat, from: 0, to: 60, onFeet: false)
+        XCTAssertTrue(feed(&seat, from: 61, to: 80, onFeet: true).isEmpty)
+        XCTAssertEqual(feed(&seat, from: 81, to: 90, onFeet: true, away: true), [.left(at: at(61))])
+        XCTAssertFalse(seat.isSeated)
+
+        // Coming back takes another half minute of sitting still.
+        XCTAssertTrue(feed(&seat, from: 91, to: 119, onFeet: false).isEmpty)
+        XCTAssertEqual(feed(&seat, from: 120, to: 125, onFeet: false), [.sat(since: at(91))])
+    }
+
+    func testStopEndsSitting() {
+        var seat = SeatTracker()
+        XCTAssertNil(seat.stop(now: at(5)))
+        _ = feed(&seat, from: 0, to: 60, onFeet: false)
+        XCTAssertEqual(seat.stop(now: at(100)), .left(at: at(100)))
+        XCTAssertNil(seat.stop(now: at(101)))
+    }
 }

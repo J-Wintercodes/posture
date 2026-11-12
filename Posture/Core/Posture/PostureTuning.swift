@@ -27,6 +27,14 @@ struct PostureTuning: Sendable {
     var creepRate = 8.0
     /// Head drop during a fast forward pitch that marks a slump.
     var slumpSink = 0.015
+    /// A fast nod only counts as looking down at something (notes, a book)
+    /// when the head ends up at least this far forward of the baseline.
+    /// A quick move into a shallower angle that then stays there is someone
+    /// dropping into a slouch, and counts as one.
+    var lookDownPitch = 26.0
+    /// Hysteresis below `lookDownPitch`, so a head that moves while reading
+    /// does not flip between the two.
+    var lookDownRelease = 3.0
 
     // MARK: Grace
     /// Seconds a full-severity slouch may last before the first nudge.

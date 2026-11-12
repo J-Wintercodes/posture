@@ -7,6 +7,8 @@ struct SyntheticHead {
     /// How the bud happens to sit in the ear. The engine must not care.
     var restForward = 11.0
     var restLateral = -2.5
+    /// The bud the frames claim to come from.
+    var side: SensorSide = .unknown
 
     private(set) var time: TimeInterval = 0
     private var lastForward: Double?
@@ -41,7 +43,7 @@ struct SyntheticHead {
             acceleration.x += 0.08 * sin(2 * .pi * 0.95 * time)
         }
 
-        let sample = HeadSample(t: time, gravity: gravity, rotationRate: rotation, userAcceleration: acceleration)
+        let sample = HeadSample(t: time, gravity: gravity, rotationRate: rotation, userAcceleration: acceleration, side: side)
         time += dt
         return sample
     }

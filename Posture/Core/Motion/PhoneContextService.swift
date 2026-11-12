@@ -5,10 +5,10 @@ import UIKit
 
 /// Answers one question for the engine: is the user on the phone right now?
 ///
-/// Two things silence the coach:
-/// - the app is in the foreground,
-/// - the iPhone is unlocked and in the hand: it is tilted or it carries the
-///   small tremor a table never has.
+/// One thing silences the coach: the iPhone is unlocked and in the hand. It
+/// is tilted, or it carries the small tremor a table never has. The app
+/// being on screen is not enough: a phone lying on the desk with the live
+/// screen open must still get the tones.
 ///
 /// A locked phone never counts as in use, however much it moves (pocket,
 /// bag, a wobbly desk). And every signal expires on its own, so a missed
