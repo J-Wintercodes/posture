@@ -31,7 +31,10 @@ struct SpineOrbView: View {
 
     var body: some View {
         VStack(spacing: diameter * 0.10) {
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+            // The satellite takes nine seconds per lap: 20 frames a second
+            // look the same as 30 and keep the GPU idle more. In Low Power
+            // Mode it stands still.
+            TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: ProcessInfo.processInfo.isLowPowerModeEnabled)) { timeline in
                 orb(phase: timeline.date.timeIntervalSinceReferenceDate)
             }
             .frame(width: diameter * 1.56, height: diameter * 1.14)

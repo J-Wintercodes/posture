@@ -31,7 +31,7 @@ struct StopStudyModeIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let reply = AppModel.shared.stopStudyMode()
+        let reply = await AppModel.shared.stopStudyMode()
         return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: reply)))
     }
 }

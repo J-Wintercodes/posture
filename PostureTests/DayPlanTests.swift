@@ -414,6 +414,51 @@ final class SittingMathTests: XCTestCase {
         XCTAssertEqual(seconds(late, now: PlanClock.at(8, day: 13), day: PlanClock.at(12, day: 13)), 3600)
     }
 
+    func testWalkingWithoutAirPodsIsTakenOff() {
+        // Study mode 9 to 12, the iPhone saw walking 10:00 to 10:10 and a
+        // drive that ended 9:05.
+        let spans = [span(.study, PlanClock.at(9), PlanClock.at(12))]
+        let moving = [
+            DateInterval(start: PlanClock.at(10), end: PlanClock.at(10, 10)),
+            DateInterval(start: PlanClock.at(8, 30), end: PlanClock.at(9, 5))
+        ]
+        let sat = SittingMath.seconds(spans, on: PlanClock.at(12), now: PlanClock.at(20), calendar: PlanClock.calendar, moving: moving)
+        XCTAssertEqual(sat, 3 * 3600 - 15 * 60)
+    }
+
+    func testAirPodsDecideWhileTheyAreIn() {
+        // Library 9 to 12. AirPods in 10 to 11, sitting with them 10:05 to
+        // 10:40. Walking the phone saw at 10:50 does not count twice, the
+        // walking at 11:30 is taken off.
+        let spans = [
+            span(.library, PlanClock.at(9), PlanClock.at(12)),
+            span(.airpods, PlanClock.at(10), PlanClock.at(11)),
+            span(.seated, PlanClock.at(10, 5), PlanClock.at(10, 40))
+        ]
+        let moving = [
+            DateInterval(start: PlanClock.at(10, 50), end: PlanClock.at(10, 55)),
+            DateInterval(start: PlanClock.at(11, 30), end: PlanClock.at(11, 40))
+        ]
+        let sat = SittingMath.seconds(spans, on: PlanClock.at(12), now: PlanClock.at(20), calendar: PlanClock.calendar, moving: moving)
+        // 9-10 (60) + 10:05-10:40 (35) + 11-12 less 10 (50)
+        XCTAssertEqual(sat, (60 + 35 + 50) * 60)
+    }
+
+    func testMovingPartsFromActivitySamples() {
+        let samples = [
+            ActivitySample(start: PlanClock.at(9), moving: false),
+            ActivitySample(start: PlanClock.at(9, 10), moving: true),
+            ActivitySample(start: PlanClock.at(9, 15), moving: true),
+            ActivitySample(start: PlanClock.at(9, 20), moving: false),
+            ActivitySample(start: PlanClock.at(9, 50), moving: true)
+        ]
+        let parts = SittingMath.movingParts(samples, until: PlanClock.at(10))
+        XCTAssertEqual(parts, [
+            DateInterval(start: PlanClock.at(9, 10), end: PlanClock.at(9, 20)),
+            DateInterval(start: PlanClock.at(9, 50), end: PlanClock.at(10))
+        ])
+    }
+
     func testNothingMeansZero() {
         XCTAssertEqual(seconds([], now: PlanClock.at(12)), 0)
         XCTAssertEqual(seconds([span(.study, PlanClock.at(10), PlanClock.at(10))], now: PlanClock.at(12)), 0)

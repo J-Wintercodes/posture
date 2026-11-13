@@ -335,7 +335,9 @@ struct PostureZonesFigure: View {
 
     private func panel(_ view: PostureFigure.Viewpoint, spread: AngleSpread, caption: String) -> some View {
         VStack(spacing: 8) {
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+            // A slow drift: 15 frames a second are plenty. In Low Power Mode
+            // it stands still.
+            TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: ProcessInfo.processInfo.isLowPowerModeEnabled)) { timeline in
                 let time = timeline.date.timeIntervalSinceReferenceDate
                 Canvas { context, size in
                     PostureFigure.draw(in: context, size: size, view: view, spread: spread, time: time)

@@ -371,15 +371,6 @@ struct HomeView: View {
                     .font(.ui(12))
                     .foregroundStyle(Theme.amber)
                 }
-                if reminders, !app.notificationsOn {
-                    HStack(alignment: .top, spacing: 6) {
-                        Image(systemName: "bell.slash.fill")
-                        Text("Notifications are off for Posture, so check-ins cannot reach you. Allow them in the iOS Settings.")
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .font(.ui(12))
-                    .foregroundStyle(Theme.amber)
-                }
                 if running, app.power.isLowPowerMode {
                     HStack(spacing: 6) {
                         Image(systemName: "bolt.slash.fill")
@@ -468,17 +459,15 @@ struct HomeView: View {
     }
 
     private func actionSubtext(reminders: Bool) -> String {
-        let minutes = app.settings.value.checkInMinutes
         if reminders {
-            let next = app.day.nextCheckInAt.map { "Next check-in at \(Fmt.time($0)). " } ?? ""
-            return next + "This time counts as sitting. No sensors, no audio: it costs next to no battery."
+            return "This time counts as sitting, less the walking your iPhone notices. No reminders without AirPods, no sensors, no audio: it costs next to no battery."
         }
         let config = app.settings.value
         let atLibraries = config.autoStudy && config.places.contains { $0.kind.startsOnArrival }
         let lead = atLibraries
             ? "At your libraries nothing has to be started: study mode runs once you sit there with your AirPods in. Anywhere else: "
             : ""
-        return lead + "Study mode checks in every \(minutes) minutes and counts the time as sitting. It costs next to no battery, and Siri can start it. Tracking watches your posture through the AirPods and uses more."
+        return lead + "Study mode counts the time as sitting, quietly and at next to no battery, and Siri can start it. Tracking watches your posture through the AirPods, checks in when you need a break and uses more."
     }
 
     // MARK: Today

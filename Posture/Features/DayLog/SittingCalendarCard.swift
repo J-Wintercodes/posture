@@ -50,10 +50,16 @@ struct SittingCalendarCard: View {
                     }
                 }
 
-                Text("Big number: time sat (h:mm), from study mode at home and in the library. Small number: pain that evening, 0 to 10.")
+                Text("Big number: time sat (h:mm) in study mode and in the library. With AirPods in, they tell sitting from walking. Without them, the walking your iPhone noticed is taken off. Small number: pain that evening, 0 to 10.")
                     .font(.ui(12))
                     .foregroundStyle(Theme.textFaint)
                     .fixedSize(horizontal: false, vertical: true)
+                if !app.motion.isAvailable {
+                    Text("Motion & Fitness is off for Posture, so walking without AirPods still counts as sitting. Allow it in the iOS Settings under Privacy.")
+                        .font(.ui(12))
+                        .foregroundStyle(Theme.amber)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if !app.power.hasAlwaysAccess {
                     Text("Study mode only starts on its own in a library with location set to \"Always\". Until then, open the app there once.")
                         .font(.ui(12))

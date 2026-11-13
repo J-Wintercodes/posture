@@ -2,10 +2,10 @@
 
 iOS-App für Haltung und Rücken am Schreibtisch. Sie läuft auf zwei Arten:
 
-- **Lernmodus**: Nach einer einstellbaren Sitzzeit (20 bis 60 Minuten) sagt die App, was jetzt nötig ist, passend zum Tagesplan aus Kalender und Standort. Keine Sensoren, kein Audio, nichts läuft im Hintergrund. Kostet praktisch keinen Akku, zählt als Sitzzeit und lässt sich per Siri starten.
-- **Tracking**: Die Bewegungssensoren der AirPods messen Kopf- und Rückenhaltung. Das iPhone bleibt gesperrt; der Coach ("Theo") meldet sich bei echtem Zusammensacken und zusätzlich mit denselben Check-ins. Das ist der Modus, der Akku kostet.
+- **Lernmodus** (ohne AirPods): zählt die Zeit als Sitzen, abzüglich der Zeit, in der das iPhone Gehen erkannt hat. Keine Sensoren, kein Audio, **keine Erinnerungen**: ohne AirPods kommt nichts. Kostet praktisch keinen Akku und lässt sich per Siri starten.
+- **Tracking**: Die Bewegungssensoren der AirPods messen Kopf- und Rückenhaltung. Das iPhone bleibt gesperrt; der Coach ("Theo") meldet sich bei echtem Zusammensacken und nach einer einstellbaren Sitzzeit (20 bis 60 Minuten) mit einem Check-in, was jetzt nötig ist, passend zum Tagesplan aus Kalender und Standort. Das ist der Modus, der Akku kostet.
 
-**In der Bibliothek startet nichts von Hand** (Profil > "At a library", Standard an): Kommt man in eine gespeicherte Bibliothek, richtet sich die Session selbst ein und wartet auf die AirPods. Der Lernmodus läuft, sobald man mit AirPods drin sitzt (30 Sekunden ruhig), wird unterbrochen, wenn man aufsteht oder die AirPods rausnimmt, und läuft weiter, sobald sie wieder drin sind. Beim Verlassen der Bibliothek endet er. Gezählt wird dort nur noch die Zeit, in der man so wirklich sitzt, nicht mehr der ganze Aufenthalt.
+**In der Bibliothek startet nichts von Hand** (Profil > "At a library", Standard an): Kommt man in eine gespeicherte Bibliothek, richtet sich die Session selbst ein und wartet auf die AirPods. Der Lernmodus läuft, sobald man mit AirPods drin sitzt (30 Sekunden ruhig), wird unterbrochen, wenn man aufsteht oder die AirPods rausnimmt, und läuft weiter, sobald sie wieder drin sind. Beim Verlassen der Bibliothek endet er. Zur Sitzzeit siehe unten.
 
 Dazu kommen ohne laufende Session: ruhige Übungsvorschläge zuhause, die Schmerzfrage vor dem Schlafengehen und ein kleiner Kalender mit Sitzzeit und Schmerz der letzten drei Wochen.
 
@@ -36,10 +36,11 @@ Posture/
   App/            PostureApp, AppModel (Verdrahtung, Ankunft/Verlassen von Orten), StudyModeIntents (Siri), RootView, Tab-Bar
   Core/
     Posture/      PostureEngine (Heuristik), FatigueMonitor, Calibrator, SyntheticHead  – reines Swift, testbar
-    Motion/       HeadphoneMotionService (CMHeadphoneMotionManager), PhoneContextService (Handy in Benutzung?)
+    Motion/       HeadphoneMotionService (CMHeadphoneMotionManager), PhoneContextService (Handy in Benutzung?),
+                  MotionHistory (vom iPhone aufgezeichnetes Gehen/Fahren, für die Sitzzeit)
     Plan/         DayPlan (Kalender + Standort -> Situation), Advisor (was ist jetzt nötig), Routine (Übungskatalog),
                   DayLog (Sitzzeit-Rechnung), AmbientPlanner (Schmerzfrage, Vorschläge zuhause) – reines Swift, testbar
-                  CalendarService (EventKit), DayCoach (Check-ins: geplante Benachrichtigungen bzw. live in der Session)
+                  CalendarService (EventKit), DayCoach (Lernmodus, Check-ins live in der Session)
     Guard/        LocationAndPowerGuard (Geofences, Standort-Check, Stromsparmodus, Akku), AutoStartPolicy (reine Regel)
     Audio/        AudioCoachService (Hintergrund-Audio, Chimes, Stimme), CoachVoice (Stimmenauswahl), CoachScript (Texte en/de)
     Session/      SessionManager, LiveActivityController (Karte auf dem Sperrbildschirm), SessionStore (Journal als JSON),
@@ -47,6 +48,7 @@ Posture/
   Models/         SessionRecord, DaySummary, UserSettings
   Design/         Theme, Komponenten, SpineOrbView, Charts, PostureFigure (Sitzfigur der Posture Zones), Illustrationen
   Features/       Home, Live, Insights, Tracker (Journal), DayLog (Kalender, Schmerz-Skala), Onboarding, Routine, Profile
+  Sounds/         Eigene Sound-Dateien, ersetzen die eingebauten Töne. Anleitung: Sounds/ANLEITUNG.txt
 PostureWidgets/   Widget-Extension: zeichnet die Live Activity (Sperrbildschirm, Dynamic Island)
 Shared/           PostureActivityAttributes, von App und Extension gemeinsam kompiliert
 PostureTests/     Szenario-Tests der Heuristik, Tagesplan und Check-ins, Auto-Start-Regel, FatigueMonitor
@@ -96,10 +98,11 @@ Vorgeschlagen wird die Boden-Übung, die am längsten nicht dran war. Kein Vorsc
 
 ## Sitzzeit und Schmerz
 
-**Sitzzeit** wird aus genau zwei Quellen gezählt (`SittingMath`, `DayLogStore`):
+**Sitzzeit** ist die Zeit, in der der Lernmodus an war, abzüglich der Zeit in Bewegung (`SittingMath`, `DayLogStore`):
 
-- Bibliothek: mit dem Automatik-Lernmodus die Zeit, in der man dort mit AirPods sitzt. Ist die Automatik aus, zählt der ganze Aufenthalt per Geofence (braucht Standort "Immer").
-- Lernmodus, egal wo, und Tracking, solange man dabei wirklich sitzt (siehe Punkt 10 unten). **Zuhause zählt nur das.**
+- Gezählt wird: Lernmodus (egal wo), jede Tracking-Session und der Aufenthalt in einer gespeicherten Bibliothek (per Geofence, braucht Standort "Immer"). **Zuhause zählt nur der Lernmodus.**
+- **Mit AirPods drin** entscheiden die AirPods: Es zählt nur, wenn man 30 Sekunden ruhig war, Herumlaufen zählt nicht (Punkt 10 unten).
+- **Ohne AirPods** wird die Zeit abgezogen, in der das iPhone Gehen, Laufen, Radfahren oder Autofahren aufgezeichnet hat (`MotionHistory`, CoreMotion, Berechtigung "Bewegung & Fitness"). iOS zeichnet das sowieso auf und hebt es sieben Tage auf; die App liest es beim Öffnen, beim Beenden des Lernmodus und beim Verlassen eines Ortes nach und speichert es selbst. Kostet keinen Akku. Grenze: Bleibt das iPhone auf dem Tisch liegen, während man weggeht, sieht es kein Gehen.
 
 Überschneidungen zählen einmal. Ein vergessener Lernmodus endet nach vier Stunden ohne Lebenszeichen.
 
@@ -111,8 +114,9 @@ Vorgeschlagen wird die Boden-Übung, die am längsten nicht dran war. Kein Vorsc
 
 ## Akku
 
-- **Lernmodus** braucht keine laufende App: Die Check-ins der nächsten vier Stunden werden als lokale Benachrichtigungen bei iOS hinterlegt. Geplant wird neu, wenn die App geöffnet wird, wenn ein Ort betreten oder verlassen wird und nach jeder Übung. Verlässt man den Ort, an dem der Lernmodus gestartet wurde, endet er.
-- **Tracking** kostet weiterhin Akku: Der AirPods-Sensorstream und die stille Audio-Session, die die App im Hintergrund wach hält, lassen sich nicht wegoptimieren. Gespart wird drumherum: Die Bewegungssensoren des iPhones laufen nur noch bei entsperrtem Gerät (5 statt 10 Hz), die Anzeige wird im Hintergrund nur einmal pro Sekunde aktualisiert, der Audio-Puffer ist groß gewählt (weniger Aufwachen), eine pausierte Session (AirPods raus) endet nach 8 statt 15 Minuten, und eine automatisch gestartete Session endet beim Verlassen des Ortes.
+- **Lernmodus** braucht keine laufende App und plant keine Benachrichtigungen. Die Bewegung wird erst hinterher aus dem iPhone-Protokoll gelesen. Verlässt man den Ort, an dem der Lernmodus gestartet wurde, endet er.
+- **Tracking** kostet weiterhin Akku: Der AirPods-Sensorstream und die stille Audio-Session, die die App im Hintergrund wach hält, lassen sich nicht wegoptimieren. Gespart wird drumherum: Die Bewegungssensoren des iPhones laufen nur noch bei entsperrtem Gerät (5 statt 10 Hz), die Anzeige wird im Hintergrund nur einmal pro Sekunde aktualisiert, der Audio-Puffer ist groß gewählt (weniger Aufwachen), eine pausierte Session (AirPods raus) endet nach 8 statt 15 Minuten, und eine automatisch gestartete Session endet beim Verlassen des Ortes. Während eine Session auf die AirPods wartet, ruhen auch die iPhone-Sensoren. Der Sekundentakt der Session darf von iOS mit anderen Aufwachern gebündelt werden.
+- **Anzeige**: Die animierte Kugel läuft mit 20, die Sitzfiguren mit 15 Bildern pro Sekunde (vorher 30). Im Stromsparmodus stehen sie still.
 - **Automatik in der Bibliothek**: Nur eine laufende App merkt, dass AirPods eingesetzt werden. Deshalb hält die Session in der Bibliothek die stille Audio-Session auch ohne AirPods wach (bis zu einer Stunde, danach erst wieder nach Öffnen der App oder neuem Ankommen). Kein Ton, solange die AirPods nicht der Audioausgang sind. Im Stromsparmodus oder unter 20 % ohne Ladekabel startet nichts von selbst, und eine wartende Session gibt auf. "End session" pausiert die Automatik für eine Stunde.
 
 ## Wie die Haltungserkennung funktioniert
@@ -151,5 +155,5 @@ Theo spricht über die iOS-Sprachausgabe und nimmt automatisch die beste install
 - **Auto-Start**: iOS weckt die App beim Betreten eines Geofence nur für wenige Sekunden. In der Zeit muss die Audio-Session starten, damit die App wach bleibt. Klappt das aus dem Hintergrund nicht, kommt eine Benachrichtigung; einmal Öffnen richtet den Lernmodus dann ein.
 - **Kalender**: Home zeigt unter "Right now", welche Termine heute als Lernen oder Gym erkannt wurden.
 - **Siri**: Ob "Mach Lernmodus an in Posture" auf einem deutsch eingestellten Gerät ohne Einrichtung erkannt wird, ist ungetestet. Der selbst angelegte Kurzbefehl funktioniert unabhängig davon.
-- **Geplante Check-ins**: Der Plan wird nur neu gemacht, wenn die App aufwacht (Öffnen, Geofence). Ändert sich der Kalender, während die App geschlossen ist, gilt bis dahin der alte Plan.
+- **Gehen ohne AirPods**: Ob die Bewegungserkennung des iPhones Toilettengänge und kurze Wege zuverlässig als Gehen erkennt, ist am Gerät noch nicht geprüft.
 - **Übungen**: allgemeine Mobilitäts- und Stabilitätsübungen, kein Ersatz für Physiotherapie. Bei Schmerzen weglassen.

@@ -1,0 +1,129 @@
+EIGENE SOUNDS FÜR POSTURE
+=========================
+
+Kurz gesagt: Sound-Datei mit dem richtigen Namen in diesen Ordner legen
+(Posture\Sounds), auf main pushen, neue App installieren. Fertig.
+
+Für jeden Ton gilt: Liegt eine Datei mit seinem Namen hier, spielt die App
+die Datei. Liegt keine da, spielt sie den eingebauten Glockenton wie bisher.
+Du kannst also auch nur einen einzelnen Ton ersetzen.
+
+Erlaubte Formate: .wav, .m4a, .mp3, .caf, .aiff
+Der Name muss genau stimmen (klein geschrieben, mit Unterstrich),
+zum Beispiel:  posture_bad.wav
+
+Die Lautstärke kommt aus der Datei selbst. Ist ein Ton zu laut oder zu
+leise, die Datei lauter oder leiser exportieren.
+
+
+1. DIE TÖNE (7 Stück)
+---------------------
+
+Sie spielen in den Modi "Voice" und "Chime", im Modus "Silent" nie. Nur in
+die AirPods, nie aus dem Lautsprecher des iPhones. Sie liegen über der Musik,
+die gerade läuft.
+
+posture_bad
+    Wann:   Haltung ist gerade schlecht geworden
+    Heute:  ein tiefer Ton, G4 (392 Hz), 0,2 s, laut
+
+posture_reminder
+    Wann:   Haltung ist immer noch schlecht (nach 40 s, dann mit 80 s,
+            160 s und 320 s Abstand)
+    Heute:  derselbe tiefe Ton zweimal kurz hintereinander, 0,4 s, laut
+
+posture_good
+    Wann:   Haltung ist wieder gut
+    Heute:  zwei schnelle Töne aufwärts, E5 -> H5, 0,4 s
+
+session_start
+    Wann:   Session startet, und wenn sie nach einer Pause weiterläuft
+    Heute:  drei Töne aufwärts, C5 -> E5 -> G5, 1,2 s
+
+session_end
+    Wann:   Session endet, und wenn sie wegen Stromsparmodus pausiert
+    Heute:  drei Töne abwärts, G5 -> E5 -> C5, 1,2 s
+
+upright_set
+    Wann:   Knopf "Upright set" gedrückt
+    Heute:  zwei Töne aufwärts, E5 -> A5, 0,9 s
+
+check_in
+    Wann:   Check-in während einer Session mit AirPods ("Zeit für ...")
+    Heute:  drei Töne, C5 -> G4 -> C5, 1,5 s
+
+Anhören: Im Live-Screen spielt der Knopf "Play both beeps" erst posture_bad
+und dann posture_good.
+
+Worauf es ankommt:
+- posture_bad, posture_reminder und posture_good kommen oft, manchmal
+  mehrmals pro Minute. Kurz halten: höchstens 0,5 s, kein langer Nachhall.
+- posture_bad tief und unaufdringlich, posture_good heller und freundlicher.
+  Man muss die beiden ohne Hinsehen auseinanderhalten können.
+- Alle müssen über Musik hörbar sein.
+- Keine Stille am Anfang oder Ende der Datei.
+
+
+2. VORSCHLÄGE FÜR ELEVENLABS (Sound Effects, auf Englisch eingeben)
+-------------------------------------------------------------------
+
+posture_bad       single soft low marimba note, warm, gentle, short, dry, no reverb
+                  Dauer: 0,5 s
+posture_reminder  two soft low marimba notes, same pitch, quick double tap, dry, no reverb
+                  Dauer: 0,6 s
+posture_good      two bright soft bell notes rising, cheerful, short, clean, light reverb
+                  Dauer: 0,6 s
+session_start     three soft bell notes ascending, calm, welcoming, clean
+                  Dauer: 1,5 s
+session_end       three soft bell notes descending, calm, closing, clean
+                  Dauer: 1,5 s
+upright_set       two soft chime notes rising, confirmation sound, clean
+                  Dauer: 1 s
+check_in          gentle three note chime, calm reminder, soft bell, clean
+                  Dauer: 1,5 s
+
+Nach dem Download umbenennen, zum Beispiel in posture_bad.mp3, und hier
+ablegen.
+
+
+3. GESPROCHENE SÄTZE (Theo)
+---------------------------
+
+Nur im Modus "Voice". Gesprochen von der iOS-Sprachausgabe mit der Stimme aus
+dem Profil. Zur Haltung selbst sagt Theo nie etwas, dafür gibt es nur die
+Töne oben. Diese Sätze lassen sich (noch) nicht durch Dateien ersetzen.
+
+Feste Sätze (Deutsch / Englisch):
+- Session von Hand gestartet:   "Ich bin da. Sperr ruhig dein Handy."
+                                "I'm here. Go ahead and lock your phone."
+- Session automatisch gestartet: "Posture Session gestartet."
+                                "Posture session started."
+- Session beendet:              "Session beendet. Gut gemacht."
+                                "Session ended. Nicely done."
+- Stromsparmodus geht an:       "Stromsparmodus aktiv. Ich pausiere."
+                                "Low Power Mode is on. I'll pause."
+- Weiter nach einer Pause:      "Weiter geht's."  /  "Back on."
+- Knopf "Upright set":          "Aufrecht gespeichert."  /  "Upright set."
+- Stimmprobe im Profil:         "Hallo, ich bin Theo. Schultern locker, Rücken lang."
+                                "Hi, I'm Theo. Soft shoulders, long spine."
+
+Check-in während einer Session mit AirPods: Anlass + "Zeit für <Übung>,
+<Dauer>." + Hinweis. Beispiel: "45 Minuten ohne Pause. Zeit für Augen und
+Haltung, 30 Sekunden. Geht leise am Platz."
+Die Texte stehen in Posture/Core/Plan/Advisor.swift (AdviceText), die
+Übungsschritte in Posture/Core/Plan/Routine.swift.
+
+
+4. TÖNE, DIE VON iOS KOMMEN
+---------------------------
+
+- Standard-Benachrichtigungston: bei der Schmerzfrage vor dem Schlafen und
+  beim Hinweis "You're at ..., tap to open Posture". Ließe sich durch eine
+  eigene Datei ersetzen (höchstens 30 s, .caf/.wav/.aiff), ist aber noch
+  nicht eingebaut.
+- Siri-Antwort nach "Lernmodus an/aus": spricht Siri, nicht ersetzbar.
+- Wechsel zum nächsten Schritt einer Übung: nur ein Tippen (Haptik).
+
+Ohne Ton kommen: "Study mode is ready/off", die ruhigen Vorschläge zuhause und
+alle Benachrichtigungen im Modus Silent. Der Lernmodus ohne AirPods schickt
+gar keine Erinnerungen mehr.

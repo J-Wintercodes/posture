@@ -68,6 +68,9 @@ final class SessionManager {
     @ObservationIgnored private var ticker: Timer?
     @ObservationIgnored private var listener: UUID?
     @ObservationIgnored private var holdsStream = false
+    /// True while the AirPods send motion in a live session. The day log
+    /// lets them decide what counts as sitting for exactly that time.
+    @ObservationIgnored private var airpodsReported = false
     @ObservationIgnored private var lastFrameAt = Date()
     @ObservationIgnored private var lastPublishT = 0.0
     @ObservationIgnored private var pausedAt: Date?
@@ -160,6 +163,7 @@ final class SessionManager {
         seat = SeatTracker()
         isSitting = false
         sensorSide = .unknown
+        airpodsReported = false
 
         listener = headphones.addListener { [weak self] sample in self?.ingest(sample) }
         holdStream(true)
@@ -170,6 +174,9 @@ final class SessionManager {
         ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
+        // Lets iOS bundle the wake-up with others instead of waking the CPU
+        // on the exact second.
+        ticker?.tolerance = 0.3
         pendingCue = nil
         greeted = !isAutoStarted
         if greeted { announce(.sessionStarted(auto: false)) }
@@ -192,7 +199,8 @@ final class SessionManager {
         listener = nil
         holdStream(false)
         phone.stop()
-        applySeat(seat.stop(now: Date()))
+        applySeat(seat.stop(now: min(Date(), lastFrameAt)))
+        reportAirpods(false, at: min(Date(), lastFrameAt))
         pendingCue = nil
 
         if let draft {
@@ -278,13 +286,18 @@ final class SessionManager {
         phase = .paused(reason)
         pausedAt = Date()
         pendingCue = nil
-        // No motion, no sitting: the count stops here.
-        applySeat(seat.stop(now: Date()))
+        // No motion from the AirPods: from the last frame on, the iPhone's
+        // own motion record decides what counts as sitting.
+        let lastSeen = min(Date(), lastFrameAt)
+        applySeat(seat.stop(now: lastSeen))
+        reportAirpods(false, at: lastSeen)
+        // Whether the phone is in the hand only matters while the AirPods
+        // are scored. Its motion sensors rest while the session waits.
+        phone.stop()
         if reason == .lowPower {
             // Stop every sensor. Only the silent audio session stays up so
             // the session can pick up again when Low Power Mode ends.
             holdStream(false)
-            phone.stop()
             coach.deliver(.pausedLowPower)
         }
     }
@@ -298,9 +311,9 @@ final class SessionManager {
         phase = .live
         pausedAt = nil
         lastFrameAt = Date()
+        phone.start()
         if reason == .lowPower {
             holdStream(true)
-            phone.start()
         }
         // Low Power Mode came on while the AirPods were out.
         if power.isLowPowerMode {
@@ -339,6 +352,7 @@ final class SessionManager {
         if phase == .paused(.headphonesOut) { resume() }
         guard phase == .live else { return }
         lastFrameAt = Date()
+        reportAirpods(true, at: lastFrameAt)
 
         let reading = engine.ingest(sample, phone: phone.context)
         draft?.accumulate(reading, minuteOfDay: minuteOfDay)
@@ -385,6 +399,12 @@ final class SessionManager {
             if next.zone != zone { zone = next.zone }
             if next.context != context { context = next.context }
         }
+    }
+
+    private func reportAirpods(_ streaming: Bool, at date: Date) {
+        guard streaming != airpodsReported else { return }
+        airpodsReported = streaming
+        day.airpodsChanged(streaming: streaming, at: date)
     }
 
     private func applySeat(_ change: SeatTracker.Change?) {

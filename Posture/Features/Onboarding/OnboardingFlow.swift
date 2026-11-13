@@ -381,7 +381,7 @@ private struct PermissionsStep: View {
             permissionRow(
                 icon: "bell.fill",
                 title: "Notifications",
-                detail: "Carries the check-ins. In reminders-only mode they are all there is.",
+                detail: "Carries the check-ins while you track with AirPods, and the pain question at bedtime.",
                 isOn: notificationsOn,
                 actionTitle: "Allow"
             ) {

@@ -6,12 +6,13 @@ import Observation
 ///
 /// It runs in two ways:
 ///
-/// - **Study mode** (`light`): no sensors, no audio, nothing running. The
-///   check-ins are handed to iOS as scheduled notifications and the app can
-///   sleep or be closed. This is the mode that costs no battery. It can be
-///   started with Siri.
-/// - **Tracking**: an AirPods session is live anyway, so the check-ins are
-///   decided on the spot and Theo says them.
+/// - **Study mode** (`light`): no sensors, no audio, nothing running, and
+///   no reminders: without the AirPods in nothing pops up. It only counts
+///   the time as sitting (less the walking the iPhone saw). It costs no
+///   battery and can be started with Siri.
+/// - **Tracking**: an AirPods session is live, so the check-ins are decided
+///   on the spot and Theo says them. They only ever come with the AirPods
+///   in.
 ///
 /// Both count as sitting in the day log. Outside of them it plans the quiet
 /// things: the pain question before bed and calm suggestions at home.
@@ -89,6 +90,9 @@ final class DayCoach {
         self.coach = coach
         self.defaults = defaults
         restoreLight()
+        // Earlier versions handed study mode check-ins to iOS ahead of time.
+        // Take back any that are still waiting.
+        Notifier.cancel(ids: Self.checkInIDs)
     }
 
     // MARK: Reading the day
@@ -97,8 +101,9 @@ final class DayCoach {
         CheckInPlanner.interval(minutes: settings.value.checkInMinutes)
     }
 
+    /// Only a tracked session checks in.
     var nextCheckInAt: Date? {
-        guard mode != .off, let anchor else { return nil }
+        guard mode == .tracking, let anchor else { return nil }
         let step = intervalSeconds
         let passed = max(0, (Date().timeIntervalSince(anchor) / step).rounded(.down))
         return anchor.addingTimeInterval((passed + 1) * step)
@@ -153,7 +158,6 @@ final class DayCoach {
         }
         if advice != suggestion { suggestion = advice }
 
-        if mode == .light { scheduleLight(now: now) }
         scheduleAmbient(now: now)
     }
 
@@ -238,77 +242,10 @@ final class DayCoach {
         persistLight()
     }
 
-    /// The check-ins fired as notifications while the app was asleep. Bring
-    /// the counters up to date and offer the latest one if it is fresh.
+    /// Study mode ran out while the app was asleep.
     private func catchUpLight(now: Date) {
-        guard mode == .light, let start = anchor, let endsAt = lightEndsAt else { return }
-        if now > endsAt {
-            stopLight(at: endsAt)
-            return
-        }
-        let step = intervalSeconds
-        let passed = Int((now.timeIntervalSince(start) / step).rounded(.down))
-        guard passed > 0 else { return }
-        let lastAt = start.addingTimeInterval(Double(passed) * step)
-        let index = rotation + passed - 1
-        rotation += passed
-        anchor = lastAt
-        if now.timeIntervalSince(lastAt) < Self.dueLifetime {
-            let situation = DayPlanner.resolve(plannerInput(now: now))
-            let advice = Advisor.advice(
-                for: situation, hour: hour(of: now), index: index,
-                doneToday: store.routinesDone(), sittingFor: sittingFor(at: lastAt)
-            )
-            // An announcement has nothing to start, so nothing is offered.
-            if let advice, !advice.isAnnouncement {
-                due = Due(advice: advice, trigger: .interval(minutes: settings.value.checkInMinutes), at: lastAt)
-            }
-        }
-        persistLight()
-    }
-
-    /// Hands the coming check-ins to iOS. A request with an id that is
-    /// already pending replaces it, so only the unused ids are cancelled.
-    private func scheduleLight(now: Date) {
-        guard mode == .light, let anchor, let endsAt = lightEndsAt else { return }
-        let config = settings.value
-        let here = currentPlace
-        var input = CheckInPlanner.Input()
-        input.now = now
-        input.anchor = anchor
-        input.endsAt = endsAt
-        input.intervalMinutes = config.checkInMinutes
-        input.rotation = rotation
-        input.events = calendar.events
-        input.placeKind = here?.kind
-        input.placeName = here?.displayName
-        input.savedKinds = Set(config.places.map { $0.kind })
-        input.locationKnown = power.isLocationTrusted
-        input.recentPain = log.recentPain(now: now)
-        input.doneToday = store.routinesDone()
-        input.seatedSince = seatedSince
-        input.maxSlots = Self.checkInIDs.count
-
-        let slots = CheckInPlanner.plan(input)
-        let language = config.coachLanguage
-        for (index, slot) in slots.enumerated() {
-            var body = AdviceText.body(slot.advice, trigger: .interval(minutes: config.checkInMinutes), language: language)
-            if slot.isLast {
-                body += language == .de
-                    ? " Letzte Erinnerung für jetzt. Öffne Posture, um weiterzumachen."
-                    : " Last reminder for now. Open Posture to keep going."
-            }
-            Notifier.schedule(
-                title: AdviceText.title(slot.advice, language: language),
-                body: body,
-                id: Self.checkInIDs[index],
-                at: slot.date,
-                routineID: slot.advice.isAnnouncement ? nil : slot.advice.routine.id,
-                checkIn: true
-            )
-        }
-        let unused = Array(Self.checkInIDs.dropFirst(slots.count))
-        if !unused.isEmpty { Notifier.cancel(ids: unused) }
+        guard mode == .light, let endsAt = lightEndsAt, now > endsAt else { return }
+        stopLight(at: endsAt)
     }
 
     private func persistLight() {
@@ -352,6 +289,9 @@ final class DayCoach {
 
     func trackingStarted(now: Date = Date()) {
         if mode == .light { stopLight(at: now) }
+        // The whole session counts as study mode. Where the AirPods are in,
+        // they decide what of it was sitting.
+        log.open(.study, at: now)
         mode = .tracking
         anchor = now
         sittingSince = now
@@ -363,18 +303,30 @@ final class DayCoach {
     }
 
     /// The tracked session saw the user sit down (still for half a minute).
-    /// Only from here on does it count as sitting: walking around with
-    /// AirPods in does not.
+    /// With the AirPods in, only this counts: walking around with them in
+    /// does not.
     func sittingBegan(at date: Date) {
         guard mode == .tracking else { return }
-        log.open(.study, at: date)
+        log.open(.seated, at: date)
         log.touchStudy(at: Date())
     }
 
     /// The user walked off, or the AirPods came out.
     func sittingEnded(at date: Date) {
         guard mode == .tracking else { return }
-        log.close(.study, at: date)
+        log.close(.seated, at: date)
+    }
+
+    /// The AirPods started or stopped sending motion. While they do, they
+    /// decide what counts as sitting; while they do not, the iPhone's motion
+    /// record does.
+    func airpodsChanged(streaming: Bool, at date: Date) {
+        guard mode == .tracking else { return }
+        if streaming {
+            log.open(.airpods, at: date)
+        } else {
+            log.close(.airpods, at: date)
+        }
     }
 
     func trackingEnded(now: Date = Date()) {
@@ -382,6 +334,8 @@ final class DayCoach {
         mode = .off
         anchor = nil
         due = nil
+        log.close(.seated, at: now)
+        log.close(.airpods, at: now)
         log.close(.study, at: now)
         Notifier.clearDelivered(ids: [Notifier.liveCheckInID])
         refresh(now: now)

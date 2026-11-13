@@ -243,7 +243,7 @@ struct ProfileSheet: View {
                     }
                     .tint(Theme.mint)
                 }
-                Text("After that long without a break the coach says what is needed: quiet and seated in the library, light before the gym, and the floor routines for back and nervous system only at home.")
+                Text("Only with AirPods in. After that long without a break the coach says what is needed: quiet and seated in the library, light before the gym, and the floor routines for back and nervous system only at home.")
                     .font(.ui(13))
                     .foregroundStyle(Theme.textDim)
                     .fixedSize(horizontal: false, vertical: true)

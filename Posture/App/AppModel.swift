@@ -25,6 +25,7 @@ final class AppModel {
     let power: LocationAndPowerGuard
     let coach: AudioCoachService
     let calendar: CalendarService
+    let motion: MotionHistory
     let day: DayCoach
     let session: SessionManager
 
@@ -62,6 +63,7 @@ final class AppModel {
         let power = LocationAndPowerGuard()
         let coach = AudioCoachService()
         let calendar = CalendarService()
+        let motion = MotionHistory()
         let day = DayCoach(settings: settings, store: store, log: log, calendar: calendar, power: power, coach: coach)
         self.settings = settings
         self.store = store
@@ -71,6 +73,7 @@ final class AppModel {
         self.power = power
         self.coach = coach
         self.calendar = calendar
+        self.motion = motion
         self.day = day
         self.session = SessionManager(
             settings: settings, store: store, headphones: headphones,
@@ -122,6 +125,12 @@ final class AppModel {
         day.refresh()
         attemptAutoStudy(.opened)
         Task { notificationsOn = await Notifier.isAuthorized() }
+        syncSitting()
+    }
+
+    /// Takes the walking the iPhone recorded off the sitting time.
+    func syncSitting() {
+        Task { await log.readMotion(from: motion) }
     }
 
     /// The profile was closed: calendar switch, word lists, the interval,
@@ -163,6 +172,7 @@ final class AppModel {
         // The user said stop: nothing starts on its own for the next hour,
         // even if the app is relaunched at the library.
         snooze()
+        syncSitting()
     }
 
     // MARK: Study mode
@@ -181,6 +191,7 @@ final class AppModel {
         day.stopLight()
         day.refresh()
         snooze()
+        syncSitting()
     }
 
     /// "Hey Siri, mach Lernmodus an". Returns what Siri says back.
@@ -197,20 +208,18 @@ final class AppModel {
             return de ? "Der Lernmodus läuft schon." : "Study mode is already on."
         }
         // At a library it is the automatic that is switched back on. If the
-        // battery guard is in the way, the check-ins without sensors below
-        // are what is left.
+        // battery guard is in the way, study mode without sensors is what
+        // is left.
         clearSnooze()
         if startAutoStudy(explicit: true) { return ready }
         day.startLight(auto: false)
-        Task { notificationsOn = await Notifier.isAuthorized() }
-        let minutes = settings.value.checkInMinutes
         return de
-            ? "Lernmodus ist an. Ich melde mich alle \(minutes) Minuten."
-            : "Study mode is on. I'll check in every \(minutes) minutes."
+            ? "Lernmodus ist an. Ich zähle die Zeit als Sitzen. Erinnerungen gibt es nur mit AirPods."
+            : "Study mode is on. I'm counting the time as sitting. Reminders only come with your AirPods in."
     }
 
     /// "Hey Siri, mach Lernmodus aus". Returns what Siri says back.
-    func stopStudyMode() -> String {
+    func stopStudyMode() async -> String {
         let de = settings.value.coachLanguage == .de
         if session.isRunning {
             endSession()
@@ -219,6 +228,7 @@ final class AppModel {
         } else {
             return de ? "Der Lernmodus war nicht an." : "Study mode was not on."
         }
+        await log.readMotion(from: motion)
         let sat = Self.spokenDuration(log.sittingSeconds(on: Date()), de: de)
         return de ? "Lernmodus ist aus. Heute gesessen: \(sat)." : "Study mode is off. Sat today: \(sat)."
     }
@@ -332,18 +342,13 @@ final class AppModel {
         attemptAutoStudy(.arrival)
     }
 
-    /// With the automatic on, sitting in a library is counted from what the
-    /// AirPods see: it starts when the user sits and stops when they get up
-    /// or take them out. Without it the whole stay counts, but only with
+    /// A library stay counts like study mode: as sitting, less the walking
+    /// the iPhone saw, and with the AirPods in, as they see it. Only with
     /// location "Always": otherwise nobody would notice the leaving, and the
     /// count would run on.
     private func countLibraryStay(_ id: String) {
-        guard let place = place(withID: id), place.kind == .library else { return }
-        if settings.value.autoStudy {
-            log.close(.library, placeID: id)
-        } else if power.hasAlwaysAccess {
-            log.open(.library, placeID: id)
-        }
+        guard let place = place(withID: id), place.kind == .library, power.hasAlwaysAccess else { return }
+        log.open(.library, placeID: id)
     }
 
     /// A real geofence crossing into a place.
@@ -355,6 +360,7 @@ final class AppModel {
 
     private func left(_ id: String) {
         log.close(.library, placeID: id)
+        syncSitting()
         let hadStudyMode = day.mode == .light
         day.placeLeft(id)
         let name = place(withID: id)?.displayName ?? "your place"

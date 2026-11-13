@@ -7,7 +7,9 @@ import Observation
 /// A running `AVAudioEngine` with a looping silent buffer holds the app in
 /// the background (UIBackgroundModes: audio). The session mixes with other
 /// audio, so the user's music keeps playing and the cues land on top of it.
-/// Chimes are synthesised at runtime, so there are no audio assets to ship.
+///
+/// Each sound can be replaced by a file in `Posture/Sounds/` (see the
+/// ANLEITUNG.txt there). Without a file the chime is synthesised at runtime.
 @MainActor
 @Observable
 final class AudioCoachService: NSObject {
@@ -28,6 +30,9 @@ final class AudioCoachService: NSObject {
     @ObservationIgnored private var isWired = false
     @ObservationIgnored private var variant = 0
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// Sound files from Posture/Sounds, loaded on first use.
+    @ObservationIgnored private var soundFiles: [String: AVAudioPlayer] = [:]
+    @ObservationIgnored private var missingSounds: Set<String> = []
 
     // MARK: Lifecycle
 
@@ -259,8 +264,41 @@ final class AudioCoachService: NSObject {
         }
     }
 
+    /// The file name (without extension) that replaces a cue's chime.
+    static func soundName(for cue: CoachCue) -> String {
+        switch cue {
+        case .nudge(_, let level): return level == 0 ? "posture_bad" : "posture_reminder"
+        case .recovered: return "posture_good"
+        case .sessionStarted, .resumed: return "session_start"
+        case .sessionEnded, .pausedLowPower: return "session_end"
+        case .uprightSet: return "upright_set"
+        case .checkIn: return "check_in"
+        }
+    }
+
+    /// A file of that name in the app, if one was put into Posture/Sounds.
+    /// Looked up once; the loudness is the file's own.
+    private func soundFile(named name: String) -> AVAudioPlayer? {
+        if let player = soundFiles[name] { return player }
+        if missingSounds.contains(name) { return nil }
+        for ext in ["wav", "m4a", "mp3", "caf", "aiff", "aif"] {
+            guard let url = Bundle.main.url(forResource: name, withExtension: ext),
+                  let player = try? AVAudioPlayer(contentsOf: url) else { continue }
+            player.prepareToPlay()
+            soundFiles[name] = player
+            return player
+        }
+        missingSounds.insert(name)
+        return nil
+    }
+
     private func playChime(for cue: CoachCue) {
         guard isWired, engine.isRunning else { return }
+        if let file = soundFile(named: Self.soundName(for: cue)) {
+            file.currentTime = 0
+            file.play()
+            return
+        }
         let notes: [Note]
         var gain = 0.2
         switch cue {
