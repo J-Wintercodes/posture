@@ -324,20 +324,23 @@ struct HomeView: View {
         let running = app.session.isRunning
         let reminders = app.day.mode == .light
         let connected = app.headphones.isConnected
-        let statusColor = (running || reminders || connected) ? Theme.mint : Theme.textDim
+        let copy = actionCopy(running: running, reminders: reminders, connected: connected)
+        let statusColor = copy.isActive ? Theme.mint : Theme.textDim
         return Card {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 8) {
                             StatusDot(color: statusColor)
-                            SectionLabel(actionLabel(running: running, reminders: reminders, connected: connected), color: statusColor)
+                            SectionLabel(copy.label, color: statusColor)
                         }
-                        Text(running ? "Theo is with you." : (reminders ? "Study mode is on." : "Ready when you are."))
+                        Text(copy.title)
                             .font(.serif(27))
                             .foregroundStyle(Theme.text)
                         Group {
-                            if running {
+                            if let detail = copy.detail {
+                                Text(detail)
+                            } else if running {
                                 RunningForText()
                             } else {
                                 Text(actionSubtext(reminders: reminders))
@@ -358,6 +361,15 @@ struct HomeView: View {
                 } else {
                     PillButton(title: "Start study mode", icon: "book.fill") { app.startReminders() }
                     PillButton(title: "Track posture with AirPods", icon: "play.fill", kind: .dark) { app.startManualSession() }
+                }
+                if let blocked = autoBlockText {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "pause.circle.fill")
+                        Text(blocked)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .font(.ui(12))
+                    .foregroundStyle(Theme.amber)
                 }
                 if reminders, !app.notificationsOn {
                     HStack(alignment: .top, spacing: 6) {
@@ -380,10 +392,79 @@ struct HomeView: View {
         }
     }
 
-    private func actionLabel(running: Bool, reminders: Bool, connected: Bool) -> String {
-        if running { return "Session running" }
-        if reminders { return "Study mode" }
-        return connected ? "AirPods connected" : "No AirPods needed"
+    private struct ActionCopy {
+        var label: String
+        var title: String
+        /// Nil where the text below the title has a view of its own.
+        var detail: String?
+        var isActive: Bool
+    }
+
+    private func actionCopy(running: Bool, reminders: Bool, connected: Bool) -> ActionCopy {
+        let session = app.session
+        if running, session.isAutoStarted {
+            // Study mode at a library runs on its own. Say what it is
+            // waiting for.
+            switch session.phase {
+            case .paused(.headphonesOut):
+                return ActionCopy(
+                    label: "Study mode · waiting",
+                    title: "Waiting for your AirPods.",
+                    detail: "Put them in and sit down. Study mode starts on its own, pauses when you get up or take them out, and carries on when you are back.",
+                    isActive: false
+                )
+            case .paused(.lowPower):
+                return ActionCopy(
+                    label: "Study mode · paused",
+                    title: "Paused to save battery.",
+                    detail: "It picks up again when Low Power Mode is off.",
+                    isActive: false
+                )
+            case .live, .idle:
+                if session.isSitting {
+                    return ActionCopy(
+                        label: "Study mode",
+                        title: "Theo is with you.",
+                        detail: "This counts as sitting. It pauses when you get up or take your AirPods out.",
+                        isActive: true
+                    )
+                }
+                return ActionCopy(
+                    label: "Study mode · waiting",
+                    title: "Waiting until you sit.",
+                    detail: "It counts once you have been still for half a minute.",
+                    isActive: false
+                )
+            }
+        }
+        if running {
+            return ActionCopy(label: "Session running", title: "Theo is with you.", detail: nil, isActive: true)
+        }
+        if reminders {
+            return ActionCopy(label: "Study mode", title: "Study mode is on.", detail: nil, isActive: true)
+        }
+        return ActionCopy(
+            label: connected ? "AirPods connected" : "No AirPods needed",
+            title: "Ready when you are.",
+            detail: nil,
+            isActive: connected
+        )
+    }
+
+    /// At a library, but study mode did not set itself up: say why.
+    private var autoBlockText: String? {
+        guard let block = app.autoStudyBlock else { return nil }
+        switch block {
+        case .lowPowerMode:
+            return "Low Power Mode is on, so study mode does not start on its own here."
+        case .lowBattery:
+            return "The battery is low, so study mode does not start on its own here."
+        case .snoozed:
+            let until = app.snoozedUntil.map { " until \(Fmt.time($0))" } ?? ""
+            return "You stopped it, so nothing starts on its own\(until). Tap \"Track posture with AirPods\" to switch it back on."
+        case .disabled, .sessionActive, .notAtFocusPlace:
+            return nil
+        }
     }
 
     private func actionSubtext(reminders: Bool) -> String {
@@ -392,7 +473,12 @@ struct HomeView: View {
             let next = app.day.nextCheckInAt.map { "Next check-in at \(Fmt.time($0)). " } ?? ""
             return next + "This time counts as sitting. No sensors, no audio: it costs next to no battery."
         }
-        return "Study mode checks in every \(minutes) minutes and counts the time as sitting. It costs next to no battery, and Siri can start it. Tracking watches your posture through the AirPods and uses more."
+        let config = app.settings.value
+        let atLibraries = config.autoStudy && config.places.contains { $0.kind.startsOnArrival }
+        let lead = atLibraries
+            ? "At your libraries nothing has to be started: study mode runs once you sit there with your AirPods in. Anywhere else: "
+            : ""
+        return lead + "Study mode checks in every \(minutes) minutes and counts the time as sitting. It costs next to no battery, and Siri can start it. Tracking watches your posture through the AirPods and uses more."
     }
 
     // MARK: Today

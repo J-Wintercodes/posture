@@ -1,13 +1,15 @@
 import Foundation
 
-/// The rule for starting posture tracking on arrival, as a pure function so
-/// it can be tested without CoreLocation or a battery.
+/// The rule for study mode starting on its own, as a pure function so it can
+/// be tested without CoreLocation or a battery.
 ///
-/// There is no weekly schedule any more: tracking starts on its own only at
-/// a library, and only if the user chose that in the profile.
+/// It only says whether the session may be set up at a library. AirPods are
+/// not part of it: the session is set up on arrival and then waits for them,
+/// because nothing wakes the app when they go in later.
 enum AutoStartPolicy {
     struct Input {
         var enabled = true
+        /// A session is running, or study mode was started by hand.
         var sessionActive = false
         var isLowPowerMode = false
         /// 0...1, nil when unknown.
@@ -17,13 +19,12 @@ enum AutoStartPolicy {
         var now = Date()
         /// Name of the library the phone is at, nil when it is at none.
         var placeName: String?
-        var headphonesConnected = false
         var snoozedUntil: Date?
     }
 
     enum Block: Equatable {
         case lowPowerMode, lowBattery, disabled, sessionActive, snoozed
-        case notAtFocusPlace, noHeadphones
+        case notAtFocusPlace
     }
 
     enum Decision: Equatable {
@@ -42,7 +43,6 @@ enum AutoStartPolicy {
         guard !input.sessionActive else { return .blocked(.sessionActive) }
         if let until = input.snoozedUntil, input.now < until { return .blocked(.snoozed) }
         guard let place = input.placeName else { return .blocked(.notAtFocusPlace) }
-        guard input.headphonesConnected else { return .blocked(.noHeadphones) }
         return .start(placeName: place)
     }
 }

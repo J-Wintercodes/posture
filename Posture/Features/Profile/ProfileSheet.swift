@@ -370,7 +370,7 @@ struct ProfileSheet: View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
                 SectionLabel("Study mode with Siri")
-                Text("At home, only the time in study mode counts as sitting. In a library the whole stay counts.")
+                Text("At home, only the time in study mode counts as sitting. In a library study mode runs on its own, so Siri is for everywhere else.")
                     .font(.ui(13))
                     .foregroundStyle(Theme.textDim)
                     .fixedSize(horizontal: false, vertical: true)
@@ -398,32 +398,43 @@ struct ProfileSheet: View {
     // MARK: Arrival
 
     private func arrivalSection(_ settings: SettingsStore) -> some View {
-        let action = settings.value.arrivalAction
+        let isOn = settings.value.autoStudy
         return Card {
             VStack(alignment: .leading, spacing: 14) {
-                SectionLabel("When I arrive at a library")
-                Picker("On arrival", selection: settings.binding(\.arrivalAction)) {
-                    ForEach(ArrivalAction.allCases) { option in
-                        Text(option.title).tag(option)
+                SectionLabel("At a library")
+                Toggle(isOn: settings.binding(\.autoStudy)) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Study mode on its own")
+                            .font(.ui(15, .medium))
+                            .foregroundStyle(Theme.text)
+                        Text("Nothing to start by hand. Study mode begins once you sit in one of your libraries with your AirPods in. It pauses when you get up or take them out, carries on when they are back in, and ends when you leave.")
+                            .font(.ui(13))
+                            .foregroundStyle(Theme.textDim)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .pickerStyle(.segmented)
-                Text(action.detail)
-                    .font(.ui(13))
-                    .foregroundStyle(Theme.textDim)
-                    .fixedSize(horizontal: false, vertical: true)
-                if action == .tracking {
+                .tint(Theme.teal)
+                if isOn {
+                    Text("The AirPods have to be connected to this iPhone. While you are there the app stays awake to notice them, which costs some battery. After two hours without AirPods it stops waiting until you open the app.")
+                        .font(.ui(13))
+                        .foregroundStyle(Theme.textDim)
+                        .fixedSize(horizontal: false, vertical: true)
                     Rectangle().fill(Theme.stroke).frame(height: 1)
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: app.power.isLowPowerMode ? "bolt.slash.fill" : "bolt.fill")
                             .foregroundStyle(app.power.isLowPowerMode ? Theme.amber : Theme.mint)
                         Text(app.power.isLowPowerMode
-                             ? "Low Power Mode is on: tracking does not start on its own and a running session pauses its sensors."
-                             : "Battery guard is armed: in Low Power Mode, or below 20% without a charger, tracking does not start on its own.")
+                             ? "Low Power Mode is on: study mode does not start on its own and a running session pauses its sensors."
+                             : "Battery guard is armed: in Low Power Mode, or below 20% without a charger, study mode does not start on its own.")
                             .font(.ui(13))
                             .foregroundStyle(Theme.textDim)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                } else {
+                    Text("Off: nothing starts on its own. The whole stay in a library counts as sitting, and you start study mode or tracking when you want.")
+                        .font(.ui(13))
+                        .foregroundStyle(Theme.textDim)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 if !app.power.hasAlwaysAccess {
                     Button {

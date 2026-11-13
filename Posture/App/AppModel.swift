@@ -42,6 +42,14 @@ final class AppModel {
     @ObservationIgnored private var lastArrivalHintAt = Date.distantPast
     /// The place an auto-started tracking session belongs to.
     @ObservationIgnored private var autoTrackingPlaceID: String?
+    /// The session at a library closed itself after waiting too long for the
+    /// AirPods. A battery reading alone does not set it up again.
+    @ObservationIgnored private var gaveUpWaiting = false
+
+    /// What made the app look whether study mode should set itself up.
+    enum AutoReason {
+        case arrival, opened, headphones, power
+    }
 
     private let snoozeKey = "posture.autostart.snoozedUntil"
 
@@ -76,9 +84,13 @@ final class AppModel {
         power.onPlacesChange = { [weak self] in self?.day.refresh() }
         power.onPowerStateChange = { [weak self] in
             self?.session.powerStateChanged()
-            self?.attemptAutoTracking(arrived: false)
+            self?.attemptAutoStudy(.power)
         }
-        headphones.onConnectionChange = { [weak self] in self?.attemptAutoTracking(arrived: false) }
+        headphones.onConnectionChange = { [weak self] in self?.attemptAutoStudy(.headphones) }
+        session.onGaveUp = { [weak self] in
+            self?.gaveUpWaiting = true
+            self?.autoTrackingPlaceID = nil
+        }
         calendar.onChange = { [weak self] in self?.day.refresh() }
 
         router.onOpenRoutine = { [weak self] id in
@@ -108,22 +120,38 @@ final class AppModel {
         calendar.reload()
         day.extendLight()
         day.refresh()
-        attemptAutoTracking(arrived: false)
+        attemptAutoStudy(.opened)
         Task { notificationsOn = await Notifier.isAuthorized() }
     }
 
-    /// The profile was closed: calendar switch, word lists, the interval or
-    /// the bedtime may have changed.
+    /// The profile was closed: calendar switch, word lists, the interval,
+    /// the bedtime or the automatic at the library may have changed.
     func settingsChanged() {
         day.applySettings()
+        for id in power.insidePlaceIDs { countLibraryStay(id) }
+        if !settings.value.autoStudy, session.isRunning, session.isAutoStarted, autoTrackingPlaceID != nil {
+            // The automatic was switched off while it was running.
+            session.end()
+            showLive = false
+            autoTrackingPlaceID = nil
+        } else {
+            attemptAutoStudy(.opened)
+        }
     }
 
     // MARK: Tracking sessions
 
     func startManualSession() {
         if !session.isRunning {
-            autoTrackingPlaceID = nil
-            session.start(trigger: .manual)
+            // The user wants it now: an earlier "stop" no longer holds.
+            clearSnooze()
+            // At a library the session belongs to the place, exactly as if
+            // it had set itself up: it waits for the AirPods and ends when
+            // the phone leaves.
+            if !startAutoStudy(explicit: true) {
+                autoTrackingPlaceID = nil
+                session.start(trigger: .manual)
+            }
         }
         showLive = true
     }
@@ -158,12 +186,21 @@ final class AppModel {
     /// "Hey Siri, mach Lernmodus an". Returns what Siri says back.
     func startStudyMode() -> String {
         let de = settings.value.coachLanguage == .de
+        let ready = de
+            ? "Lernmodus ist bereit. Er läuft, sobald du mit AirPods sitzt."
+            : "Study mode is ready. It runs as soon as you sit with your AirPods in."
         if session.isRunning {
+            if session.isAutoStarted { return ready }
             return de ? "Das Tracking läuft schon und zählt als Sitzen." : "Tracking is already running and counts as sitting."
         }
         if day.mode == .light {
             return de ? "Der Lernmodus läuft schon." : "Study mode is already on."
         }
+        // At a library it is the automatic that is switched back on. If the
+        // battery guard is in the way, the check-ins without sensors below
+        // are what is left.
+        clearSnooze()
+        if startAutoStudy(explicit: true) { return ready }
         day.startLight(auto: false)
         Task { notificationsOn = await Notifier.isAuthorized() }
         let minutes = settings.value.checkInMinutes
@@ -290,22 +327,22 @@ final class AppModel {
     /// The phone is at a saved place: either it just crossed in, or the app
     /// just found out.
     private func arrived(at id: String) {
-        // Being in a library counts as sitting. Only with location "Always":
-        // without it nobody would notice the leaving, and the count would
-        // run on.
-        if let place = place(withID: id), place.kind == .library, power.hasAlwaysAccess {
-            log.open(.library, placeID: id)
-        }
+        countLibraryStay(id)
         day.refresh()
-        let config = settings.value
-        guard config.onboardingDone else { return }
-        switch config.arrivalAction {
-        case .nothing:
-            break
-        case .reminders:
-            attemptAutoReminders(placeID: id)
-        case .tracking:
-            attemptAutoTracking(arrived: true)
+        attemptAutoStudy(.arrival)
+    }
+
+    /// With the automatic on, sitting in a library is counted from what the
+    /// AirPods see: it starts when the user sits and stops when they get up
+    /// or take them out. Without it the whole stay counts, but only with
+    /// location "Always": otherwise nobody would notice the leaving, and the
+    /// count would run on.
+    private func countLibraryStay(_ id: String) {
+        guard let place = place(withID: id), place.kind == .library else { return }
+        if settings.value.autoStudy {
+            log.close(.library, placeID: id)
+        } else if power.hasAlwaysAccess {
+            log.open(.library, placeID: id)
         }
     }
 
@@ -329,93 +366,127 @@ final class AppModel {
                 sound: false
             )
         }
-        // A tracking session that started on arrival ends on leaving, so the
+        // The session that belongs to this place ends on leaving, so the
         // audio engine and the AirPods stream do not run on for nothing.
         if session.isRunning, session.isAutoStarted, autoTrackingPlaceID == id {
             session.end()
             showLive = false
             autoTrackingPlaceID = nil
             Notifier.post(
-                title: "Posture session ended",
+                title: "Study mode off",
                 body: "You left \(name).",
                 id: "auto-stop",
                 sound: false
             )
         }
+        gaveUpWaiting = false
     }
 
-    private func attemptAutoReminders(placeID: String) {
-        guard let place = place(withID: placeID), place.kind.startsOnArrival else { return }
-        guard day.mode == .off, !session.isRunning, !isSnoozed else { return }
-        day.startLight(auto: true)
-        Notifier.post(
-            title: "Study mode on",
-            body: "You're at \(place.displayName). A check-in every \(settings.value.checkInMinutes) minutes. Nothing else is running.",
-            id: "auto-start",
-            sound: false
-        )
-    }
+    // MARK: Study mode on its own
 
-    /// Evaluated on arrival at a library, when AirPods connect, when the
-    /// power state changes and when the app comes to the foreground. Only
-    /// does something if the user picked "Tracking" for arrivals.
-    func attemptAutoTracking(arrived: Bool) {
+    /// The library or focus place the phone is at, if study mode may run on
+    /// its own there.
+    private var autoPlace: FocusPlace? {
         let config = settings.value
-        guard config.onboardingDone, config.arrivalAction == .tracking else { return }
-        let place = config.places.first {
+        guard config.onboardingDone, config.autoStudy else { return nil }
+        return config.places.first {
             $0.kind.startsOnArrival && power.insidePlaceIDs.contains($0.id.uuidString)
         }
+    }
 
+    /// `explicit`: the user asked for it right now, so study mode that was
+    /// started by hand is replaced instead of being left alone.
+    private func autoStartDecision(explicit: Bool = false) -> AutoStartPolicy.Decision {
+        let config = settings.value
         var input = AutoStartPolicy.Input()
-        input.sessionActive = session.isRunning
+        input.enabled = config.onboardingDone && config.autoStudy
+        input.sessionActive = session.isRunning || (!explicit && day.mode == .light)
         input.isLowPowerMode = power.isLowPowerMode
         input.batteryLevel = power.batteryLevel
         input.isCharging = power.isCharging
         input.minBattery = config.minBatteryForAutoStart
-        input.placeName = place?.displayName
-        input.headphonesConnected = headphones.isConnected
+        input.placeName = autoPlace?.displayName
         input.snoozedUntil = snoozedUntil
+        return AutoStartPolicy.decide(input)
+    }
 
-        switch AutoStartPolicy.decide(input) {
-        case .start(let placeName):
-            if session.start(trigger: .auto(placeName: placeName)) {
-                autoTrackingPlaceID = place?.id.uuidString
-                Notifier.post(
-                    title: "Posture session started",
-                    body: "Tracking quietly at \(placeName). Keep your phone locked and carry on.",
-                    id: "auto-start",
-                    sound: false
-                )
-            }
-        case .blocked(.noHeadphones) where arrived:
-            // The app is only awake for a few seconds after a geofence
-            // event. Leave a hint the user can act on.
+    /// Sets up the session that belongs to the library the phone is at. It
+    /// waits there for the AirPods: study mode itself begins once the user
+    /// sits with them in, pauses when they get up or take them out, and
+    /// carries on when they are back.
+    ///
+    /// Nil when the rule says no, otherwise whether the session came up.
+    private func setUpAutoStudy(explicit: Bool) -> Bool? {
+        guard case .start(let placeName) = autoStartDecision(explicit: explicit),
+              let place = autoPlace else { return nil }
+        guard session.start(trigger: .auto(placeName: placeName)) else { return false }
+        autoTrackingPlaceID = place.id.uuidString
+        return true
+    }
+
+    private func startAutoStudy(explicit: Bool) -> Bool {
+        setUpAutoStudy(explicit: explicit) == true
+    }
+
+    /// Evaluated on arrival at a library, when the app comes to the
+    /// foreground, when AirPods connect and when the power state changes.
+    func attemptAutoStudy(_ reason: AutoReason) {
+        switch reason {
+        case .arrival, .opened:
+            gaveUpWaiting = false
+        case .headphones:
+            // The audio route changes for many reasons. Only AirPods going
+            // in are one to set the session up again.
+            guard headphones.isConnected else { return }
+            gaveUpWaiting = false
+        case .power:
+            // The battery level changes all the time. It must not bring
+            // back a session that just gave up waiting.
+            guard !gaveUpWaiting else { return }
+        }
+        guard let started = setUpAutoStudy(explicit: false), let place = autoPlace else { return }
+        if started {
+            Notifier.post(
+                title: "Study mode is ready",
+                body: "You're at \(place.displayName). It starts once you sit down with your AirPods in, and pauses when you get up or take them out.",
+                id: "auto-start",
+                sound: false
+            )
+        } else {
+            // The audio session could not be opened from the background, and
+            // without it the app is asleep again in a few seconds. Leave a
+            // hint the user can act on: opening the app sets it up.
             guard Date().timeIntervalSince(lastArrivalHintAt) > 30 * 60 else { return }
             lastArrivalHintAt = Date()
             Notifier.post(
-                title: "You're at \(input.placeName ?? "the library")",
-                body: "Put in your AirPods and tap to start a quiet posture session.",
+                title: "You're at \(place.displayName)",
+                body: "Tap to open Posture once, so study mode can start on its own.",
                 id: "arrival-hint"
             )
-        case .blocked:
-            break
         }
+    }
+
+    /// Why study mode is not set up although the phone is at a library. Nil
+    /// when it is running, or when nothing is in the way.
+    var autoStudyBlock: AutoStartPolicy.Block? {
+        guard autoPlace != nil, !session.isRunning, day.mode != .light else { return nil }
+        if case .blocked(let block) = autoStartDecision() { return block }
+        return nil
     }
 
     // MARK: Snooze
 
     /// Kept across launches: a relaunch at the library counts as an arrival.
-    private var snoozedUntil: Date? {
+    var snoozedUntil: Date? {
         let stamp = UserDefaults.standard.double(forKey: snoozeKey)
         return stamp > 0 ? Date(timeIntervalSince1970: stamp) : nil
     }
 
-    private var isSnoozed: Bool {
-        guard let until = snoozedUntil else { return false }
-        return Date() < until
-    }
-
     private func snooze(minutes: Double = 60) {
         UserDefaults.standard.set(Date().addingTimeInterval(minutes * 60).timeIntervalSince1970, forKey: snoozeKey)
+    }
+
+    private func clearSnooze() {
+        UserDefaults.standard.removeObject(forKey: snoozeKey)
     }
 }

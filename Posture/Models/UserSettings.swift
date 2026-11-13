@@ -173,29 +173,6 @@ struct FocusPlace: Codable, Identifiable, Hashable {
     }
 }
 
-/// What happens when the phone arrives at a library.
-enum ArrivalAction: String, Codable, CaseIterable, Identifiable {
-    case nothing, reminders, tracking
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .nothing: return "Nothing"
-        case .reminders: return "Study mode"
-        case .tracking: return "Tracking"
-        }
-    }
-
-    var detail: String {
-        switch self {
-        case .nothing: return "Nothing starts on its own. You start study mode or tracking when you want."
-        case .reminders: return "Study mode (timed check-ins) starts when you arrive and stops when you leave. No sensors, next to no battery."
-        case .tracking: return "Posture tracking starts when you arrive with AirPods in. This is the mode that costs battery."
-        }
-    }
-}
-
 struct UserSettings: Codable {
     var onboardingDone = false
     /// What the user wants to be called. Empty until they say.
@@ -210,7 +187,10 @@ struct UserSettings: Codable {
         return trimmed.isEmpty ? nil : trimmed
     }
     var places: [FocusPlace] = []
-    var arrivalAction: ArrivalAction = .reminders
+    /// At a library study mode runs on its own: it starts once the user
+    /// sits there with AirPods in, pauses when they get up or take them out
+    /// and carries on when they are back. Nothing has to be started by hand.
+    var autoStudy = true
     var minBatteryForAutoStart = 0.2
     var feedback: FeedbackMode = .voice
     var coachLanguage: CoachLanguage = .systemDefault
@@ -248,7 +228,7 @@ struct UserSettings: Codable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case onboardingDone, useCase, places, arrivalAction, minBatteryForAutoStart
+        case onboardingDone, useCase, places, autoStudy, minBatteryForAutoStart
         case feedback, coachLanguage, coachVoiceID, readingTolerance, dailyGoalMinutes
         case baseline, seenLockHint, checkInMinutes, calendarEnabled
         case libraryKeywords, homeKeywords, gymKeywords = "gymTitleKeywords"
@@ -268,7 +248,10 @@ extension UserSettings {
         if let v = try? c.decodeIfPresent(Bool.self, forKey: .onboardingDone) { onboardingDone = v }
         if let v = try? c.decodeIfPresent(UseCase.self, forKey: .useCase) { useCase = v }
         if let v = try? c.decodeIfPresent([FocusPlace].self, forKey: .places) { places = v }
-        if let v = try? c.decodeIfPresent(ArrivalAction.self, forKey: .arrivalAction) { arrivalAction = v }
+        // Builds before the automatic stored a three-way "on arrival" choice
+        // under another key. It is not read any more: the automatic is on
+        // until it is switched off in the profile.
+        if let v = try? c.decodeIfPresent(Bool.self, forKey: .autoStudy) { autoStudy = v }
         if let v = try? c.decodeIfPresent(Double.self, forKey: .minBatteryForAutoStart) { minBatteryForAutoStart = v }
         if let v = try? c.decodeIfPresent(FeedbackMode.self, forKey: .feedback) { feedback = v }
         if let v = try? c.decodeIfPresent(CoachLanguage.self, forKey: .coachLanguage) { coachLanguage = v }
@@ -288,18 +271,5 @@ extension UserSettings {
         if let v = try? c.decodeIfPresent(Sensitivity.self, forKey: .sensitivity) { sensitivity = v }
         if let v = try? c.decodeIfPresent(String.self, forKey: .userName) { userName = v }
         if let v = try? c.decodeIfPresent(Bool.self, forKey: .askedForName) { askedForName = v }
-
-        // Builds before the arrival picker had a plain on/off switch. Keep
-        // an "off" as "nothing starts on its own".
-        if !c.contains(.arrivalAction),
-           let legacy = try? decoder.container(keyedBy: LegacyKeys.self),
-           let wasOn = try? legacy.decodeIfPresent(Bool.self, forKey: .autoStartEnabled),
-           !wasOn {
-            arrivalAction = .nothing
-        }
-    }
-
-    private enum LegacyKeys: String, CodingKey {
-        case autoStartEnabled
     }
 }

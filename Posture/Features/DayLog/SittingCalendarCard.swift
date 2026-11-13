@@ -50,12 +50,12 @@ struct SittingCalendarCard: View {
                     }
                 }
 
-                Text("Big number: time sat (h:mm), from library stays and study mode. Small number: pain that evening, 0 to 10.")
+                Text("Big number: time sat (h:mm), from study mode at home and in the library. Small number: pain that evening, 0 to 10.")
                     .font(.ui(12))
                     .foregroundStyle(Theme.textFaint)
                     .fixedSize(horizontal: false, vertical: true)
                 if !app.power.hasAlwaysAccess {
-                    Text("Library time is only counted on its own with location set to \"Always\". Until then, use study mode there as well.")
+                    Text("Study mode only starts on its own in a library with location set to \"Always\". Until then, open the app there once.")
                         .font(.ui(12))
                         .foregroundStyle(Theme.amber)
                         .fixedSize(horizontal: false, vertical: true)

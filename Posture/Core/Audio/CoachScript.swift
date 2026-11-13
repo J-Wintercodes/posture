@@ -52,7 +52,7 @@ enum CoachScript {
         switch cue {
         case .sessionStarted(let auto):
             if auto {
-                return [de ? "Posture Session gestartet." : "Posture session started."]
+                return [de ? "Lernmodus läuft." : "Study mode is on."]
             }
             return [de ? "Ich bin da. Sperr ruhig dein Handy." : "I'm here. Go ahead and lock your phone."]
         case .sessionEnded:

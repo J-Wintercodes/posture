@@ -2,11 +2,10 @@ import XCTest
 @testable import Posture
 
 final class AutoStartPolicyTests: XCTestCase {
-    /// At the library with AirPods in and a full battery: everything lines up.
+    /// At the library with a full battery: everything lines up.
     private func readyInput() -> AutoStartPolicy.Input {
         var input = AutoStartPolicy.Input()
         input.placeName = "Library"
-        input.headphonesConnected = true
         input.batteryLevel = 0.8
         return input
     }
@@ -47,12 +46,16 @@ final class AutoStartPolicyTests: XCTestCase {
         XCTAssertEqual(AutoStartPolicy.decide(input), .blocked(.disabled))
     }
 
-    func testNeedsPlaceAndHeadphones() {
+    func testNeedsAPlace() {
         var input = readyInput()
-        input.headphonesConnected = false
-        XCTAssertEqual(AutoStartPolicy.decide(input), .blocked(.noHeadphones))
         input.placeName = nil
         XCTAssertEqual(AutoStartPolicy.decide(input), .blocked(.notAtFocusPlace))
+    }
+
+    func testRunningSessionOrStudyModeBlocks() {
+        var input = readyInput()
+        input.sessionActive = true
+        XCTAssertEqual(AutoStartPolicy.decide(input), .blocked(.sessionActive))
     }
 
     func testSnoozeAfterTheUserEndedAnAutoSession() {

@@ -125,6 +125,18 @@ final class AudioCoachService: NSObject {
 
     // MARK: Delivery
 
+    /// True when a sound would come out of the iPhone itself: no AirPods (or
+    /// other headphones) are the audio output right now. A session that
+    /// waits for the AirPods in a library must stay silent until then.
+    var usesSpeaker: Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        let outputs = AVAudioSession.sharedInstance().currentRoute.outputs
+        return outputs.contains { $0.portType == .builtInSpeaker || $0.portType == .builtInReceiver }
+        #endif
+    }
+
     func deliver(_ cue: CoachCue) {
         variant += 1
         // A check-in always leaves a notification as well, whatever the
@@ -134,6 +146,9 @@ final class AudioCoachService: NSObject {
             Notifier.post(title: title, body: body, id: Notifier.liveCheckInID, sound: false, routineID: routineID, checkIn: true)
             if mode == .silent { return }
         }
+        // Chimes and Theo's voice are for the ears only. With the AirPods
+        // out they would ring through the room from the phone's speaker.
+        if mode != .silent, usesSpeaker { return }
         switch mode {
         case .silent:
             if let note = CoachScript.notification(for: cue, language: language) {

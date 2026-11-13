@@ -75,12 +75,36 @@ final class SessionManager {
     @ObservationIgnored private var secondsSinceCheckpoint = 0
     @ObservationIgnored private var isForeground = true
     @ObservationIgnored private var seat = SeatTracker()
+    /// False until the start sound of this session has been handed out. A
+    /// session that set itself up in a library stays quiet until the AirPods
+    /// are in for the first time.
+    @ObservationIgnored private var greeted = false
+    /// A start or "back on" sound that waits for the AirPods to become the
+    /// audio output. The motion frames arrive a moment before the audio
+    /// follows, and it must not come out of the phone's speaker.
+    @ObservationIgnored private var pendingCue: CoachCue?
+    @ObservationIgnored private var pendingCueAt = Date.distantPast
+
+    /// The session closed itself: it was paused for too long, or the battery
+    /// ran low while it waited for the AirPods.
+    @ObservationIgnored var onGaveUp: (() -> Void)?
+
+    /// How long a session that belongs to a library waits for the AirPods
+    /// before it gives up. Long enough for a lunch break. Without a limit a
+    /// missed "left the library" would keep the audio engine up all night.
+    static let libraryWait: TimeInterval = 2 * 3600
 
     /// A paused session is closed after this long so nothing idles forever.
     /// With the AirPods out the silent audio engine is all that still runs,
-    /// and it is the expensive part, so that wait is the shorter one.
+    /// and it is the expensive part, so a session started by hand does not
+    /// wait long. One that belongs to a library does: only a running app
+    /// notices the AirPods going back in, so it has to stay up for study
+    /// mode to carry on by itself.
     private func maxPause(for reason: PauseReason) -> TimeInterval {
-        reason == .lowPower ? 15 * 60 : 8 * 60
+        switch reason {
+        case .lowPower: return 15 * 60
+        case .headphonesOut: return isAutoStarted ? Self.libraryWait : 8 * 60
+        }
     }
 
     init(settings: SettingsStore, store: SessionStore, headphones: HeadphoneMotionService,
@@ -146,8 +170,16 @@ final class SessionManager {
         ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
-        coach.deliver(.sessionStarted(auto: isAutoStarted))
-        if power.isLowPowerMode { pause(.lowPower) }
+        pendingCue = nil
+        greeted = !isAutoStarted
+        if greeted { announce(.sessionStarted(auto: false)) }
+        if power.isLowPowerMode {
+            pause(.lowPower)
+        } else if isAutoStarted {
+            // Set up on arrival, with or without AirPods. Nothing counts and
+            // nothing sounds until the first motion frame comes in.
+            pause(.headphonesOut)
+        }
         lockScreenCard.begin(startedAt: draft?.start ?? Date(), placeName: placeName, state: cardState)
         return true
     }
@@ -161,6 +193,7 @@ final class SessionManager {
         holdStream(false)
         phone.stop()
         applySeat(seat.stop(now: Date()))
+        pendingCue = nil
 
         if let draft {
             if draft.scored >= 20 {
@@ -244,6 +277,7 @@ final class SessionManager {
         guard phase == .live else { return }
         phase = .paused(reason)
         pausedAt = Date()
+        pendingCue = nil
         // No motion, no sitting: the count stops here.
         applySeat(seat.stop(now: Date()))
         if reason == .lowPower {
@@ -268,7 +302,25 @@ final class SessionManager {
             holdStream(true)
             phone.start()
         }
-        coach.deliver(.resumed)
+        // Low Power Mode came on while the AirPods were out.
+        if power.isLowPowerMode {
+            pause(.lowPower)
+            return
+        }
+        announce(greeted ? .resumed : .sessionStarted(auto: isAutoStarted))
+        greeted = true
+    }
+
+    /// Start and "back on" are only ever played into the AirPods. If they
+    /// are not the audio output yet, the sound waits a few seconds for them.
+    private func announce(_ cue: CoachCue) {
+        if coach.usesSpeaker {
+            pendingCue = cue
+            pendingCueAt = Date()
+        } else {
+            pendingCue = nil
+            coach.deliver(cue)
+        }
     }
 
     private func holdStream(_ wanted: Bool) {
@@ -368,6 +420,14 @@ final class SessionManager {
 
         switch phase {
         case .live:
+            if let cue = pendingCue {
+                if now.timeIntervalSince(pendingCueAt) > 20 {
+                    pendingCue = nil
+                } else if !coach.usesSpeaker {
+                    pendingCue = nil
+                    coach.deliver(cue)
+                }
+            }
             if now.timeIntervalSince(lastFrameAt) > 6 {
                 pause(.headphonesOut)
             } else if snapshot.context != .away, snapshot.context != .moving {
@@ -381,8 +441,19 @@ final class SessionManager {
                 store.upsert(draft.record(end: now))
             }
         case .paused(let reason):
+            var giveUp = false
             if let pausedAt, now.timeIntervalSince(pausedAt) > maxPause(for: reason) {
+                giveUp = true
+            }
+            // Waiting for the AirPods keeps the audio engine up. Not on the
+            // last of the battery.
+            if reason == .headphonesOut, isAutoStarted, !power.isCharging,
+               let level = power.batteryLevel, level < config.minBatteryForAutoStart {
+                giveUp = true
+            }
+            if giveUp {
                 end()
+                onGaveUp?()
             }
         case .idle:
             break
