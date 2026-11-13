@@ -240,9 +240,11 @@ final class AppModel {
     private func openFromNotification(routineID: String) {
         day.refresh()
         let wanted = RoutineCatalog.routine(id: routineID)
+        // In a lecture the suggestion is only an announcement, not a routine.
+        let offered = day.suggestion.flatMap { $0.isAnnouncement ? nil : $0.routine }
         if let wanted, Advisor.isAvailable(wanted, in: day.context.situation) {
             open(wanted)
-        } else if let fallback = day.due?.advice.routine ?? day.suggestion?.routine {
+        } else if let fallback = day.due?.advice.routine ?? offered {
             open(fallback)
         } else {
             open(RoutineCatalog.eyeReset)

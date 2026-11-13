@@ -8,6 +8,8 @@ import UserNotifications
 enum Notifier {
     /// Key in `userInfo` that carries the id of the routine to open.
     static let routineKey = "routine"
+    /// Key in `userInfo` that marks a check-in, with or without a routine.
+    static let checkInKey = "checkin"
     /// Key in `userInfo` that carries the day a pain question is about.
     static let painDayKey = "painDay"
     /// Id of the check-in notification posted by a running tracking session.
@@ -45,10 +47,11 @@ enum Notifier {
         UNUserNotificationCenter.current().setNotificationCategories([category])
     }
 
-    static func post(title: String, body: String, id: String = UUID().uuidString, sound: Bool = true, routineID: String? = nil) {
+    static func post(title: String, body: String, id: String = UUID().uuidString, sound: Bool = true,
+                     routineID: String? = nil, checkIn: Bool = false) {
         let request = UNNotificationRequest(
             identifier: id,
-            content: content(title: title, body: body, sound: sound, routineID: routineID, painDay: nil),
+            content: content(title: title, body: body, sound: sound, routineID: routineID, painDay: nil, checkIn: checkIn),
             trigger: nil
         )
         UNUserNotificationCenter.current().add(request)
@@ -62,7 +65,7 @@ enum Notifier {
     /// ahead, across a change of daylight saving time); otherwise it fires
     /// after the remaining interval.
     static func schedule(title: String, body: String, id: String, at date: Date, routineID: String?,
-                         painDay: String? = nil, sound: Bool = true, wallClock: Bool = false) {
+                         painDay: String? = nil, sound: Bool = true, wallClock: Bool = false, checkIn: Bool = false) {
         guard date.timeIntervalSinceNow > 1 else { return }
         let trigger: UNNotificationTrigger
         if wallClock {
@@ -73,7 +76,7 @@ enum Notifier {
         }
         let request = UNNotificationRequest(
             identifier: id,
-            content: content(title: title, body: body, sound: sound, routineID: routineID, painDay: painDay),
+            content: content(title: title, body: body, sound: sound, routineID: routineID, painDay: painDay, checkIn: checkIn),
             trigger: trigger
         )
         UNUserNotificationCenter.current().add(request)
@@ -87,13 +90,15 @@ enum Notifier {
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
     }
 
-    private static func content(title: String, body: String, sound: Bool, routineID: String?, painDay: String?) -> UNMutableNotificationContent {
+    private static func content(title: String, body: String, sound: Bool, routineID: String?, painDay: String?,
+                                checkIn: Bool) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         if sound { content.sound = .default }
         var info: [String: String] = [:]
         if let routineID { info[routineKey] = routineID }
+        if checkIn { info[checkInKey] = "1" }
         if let painDay {
             info[painDayKey] = painDay
             content.categoryIdentifier = painCategory
@@ -124,7 +129,7 @@ final class NotificationRouter: NSObject, UNUserNotificationCenterDelegate {
         // even while the app is open. Everything else stays quiet in the
         // foreground, as before.
         let info = notification.request.content.userInfo
-        let isCheckIn = info[Notifier.routineKey] != nil
+        let isCheckIn = info[Notifier.routineKey] != nil || info[Notifier.checkInKey] != nil
         let isPain = info[Notifier.painDayKey] != nil
         completionHandler(isCheckIn || isPain ? [.banner, .list, .sound] : [])
         if isCheckIn {

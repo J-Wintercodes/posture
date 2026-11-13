@@ -43,7 +43,7 @@ Posture/
     Session/      SessionManager, LiveActivityController (Karte auf dem Sperrbildschirm), SessionStore (Journal als JSON),
                   DayLogStore (Sitzzeit und Schmerz), SettingsStore, Notifier
   Models/         SessionRecord, DaySummary, UserSettings
-  Design/         Theme, Komponenten, SpineOrbView, Charts, Illustrationen
+  Design/         Theme, Komponenten, SpineOrbView, Charts, PostureFigure (Sitzfigur der Posture Zones), Illustrationen
   Features/       Home, Live, Insights, Tracker (Journal), DayLog (Kalender, Schmerz-Skala), Onboarding, Routine, Profile
 PostureWidgets/   Widget-Extension: zeichnet die Live Activity (Sperrbildschirm, Dynamic Island)
 Shared/           PostureActivityAttributes, von App und Extension gemeinsam kompiliert
@@ -72,13 +72,16 @@ Vorlesungen, Räume und alles andere im Kalender werden ignoriert. Die Titel ste
 | Situation | Vorschlag |
 |---|---|
 | Bibliothek / unterwegs | Augen + Haltung, Aufstehen, oberer Rücken im Wechsel |
+| Uni | keine Übung, nur eine kurze Ansage ("Kurz aufrichten und durchatmen.") |
 | Gym in den nächsten 90 Minuten | nur Leichtes; zuhause Mobilität als Aufwärmen, keine Kraft |
 | Im Gym | nichts |
 | Zuhause | zusätzlich die Boden-Übungen: Wirbelsäulen-Flow, Rücken-Stabilität, Nervengleiten, Nervensystem runterfahren |
 | Zuhause nach dem Gym oder abends | Runterfahren statt Kraft |
 | Schmerz am Vorabend 6 oder mehr | nur Sanftes: Mobilität und Atmen, keine Kraft, kein Nervengleiten |
 
-Die Boden-Übungen für Rücken und Nervensystem gibt es nur zuhause; woanders sind sie gesperrt. Rücken-Stabilität und Nervengleiten werden höchstens einmal am Tag vorgeschlagen.
+Die Boden-Übungen für Rücken und Nervensystem gibt es nur zuhause; woanders sind sie gesperrt. Rücken-Stabilität und Nervengleiten werden höchstens einmal am Tag vorgeschlagen. "Aufstehen" wird in den ersten 30 Minuten des Sitzens nicht vorgeschlagen; die nächste Übung der Reihe rückt nach. Gezählt wird ab dem Start, ab der Rückkehr von einer Pause (im Tracking) oder ab dem Ende einer Übung, für die man den Stuhl verlässt.
+
+Alle Übungen und der fällige Check-in stehen im Tab *Routines*. Die Startseite zeigt die Haltung im Moment (Kugel, bei laufender Session) und daneben den Tagesdurchschnitt.
 
 ## Zuhause: ruhige Vorschläge
 
@@ -127,7 +130,7 @@ Alle Schwellen stehen in `Core/Posture/PostureTuning.swift`.
 
 ## Sperrbildschirm
 
-Während einer Session liegt eine Karte auf dem Sperrbildschirm (Live Activity, auf neueren iPhones zusätzlich in der Dynamic Island): Score, Zustand (Aligned / Drifting / Slouching / ...) und Laufzeit. Sie ist zugleich die Kontrolle, ob die App im Hintergrund noch läuft: Die Session frischt sie mindestens einmal pro Minute auf. Bleibt das aus, zeigt die Karte nach etwa zweieinhalb Minuten "Not tracking".
+Während einer Session liegt eine Karte auf dem Sperrbildschirm (Live Activity, auf neueren iPhones zusätzlich in der Dynamic Island): Score, Zustand (Aligned / Drifting / Slouching / ...) und Laufzeit. Sie ist zugleich die Kontrolle, ob die App im Hintergrund noch läuft: Die Session frischt sie einmal pro Minute auf. Bleibt das aus, zeigt die Karte nach fünf Minuten "Not tracking". iOS erlaubt nur eine begrenzte Zahl von Aktualisierungen und verwirft weitere stillschweigend; deshalb wird ein Zustandswechsel höchstens alle 15 Sekunden gemeldet, und solange die App selbst auf dem Bildschirm ist, nur der Minutentakt.
 
 - Die Karte gibt es nur im Tracking-Modus.
 - iOS erlaubt das Starten einer Live Activity nur im Vordergrund. Eine per Geofence automatisch gestartete Session bekommt ihre Karte beim nächsten Öffnen der App.

@@ -4,8 +4,8 @@ import UIKit
 /// Keeps the session card on the Lock Screen (a Live Activity) in step with
 /// the running session.
 ///
-/// The card doubles as a health check: every update carries a stale date a
-/// couple of minutes ahead and the session refreshes it once a minute. If
+/// The card doubles as a health check: every update carries a stale date
+/// five minutes ahead and the session refreshes it once a minute. If
 /// iOS ever suspends the app, the refreshes stop and the card switches to
 /// "Not tracking" instead of showing a frozen score.
 @MainActor
@@ -18,13 +18,20 @@ final class LiveActivityController {
     private var sentAt = Date.distantPast
     private var lastRequestAt = Date.distantPast
 
-    /// Shortest gap between two updates.
-    private let minGap: TimeInterval = 3
-    /// A change of the score alone is not worth more than this.
-    private let scoreGap: TimeInterval = 30
-    /// Refresh even when nothing changed, to push the stale date along.
+    // iOS only lets an app update its card so often. Past that budget it
+    // drops the updates without saying so, the stale date runs out and the
+    // card reads "Not tracking" although the session is fine. With the
+    // phone in the hand the status flips every few seconds (looking down at
+    // it reads as slouching), which is exactly when the budget ran dry. So
+    // updates are kept rare, and the stale date leaves room for a few lost
+    // ones.
+
+    /// Shortest gap between two updates for a changed status.
+    private let minGap: TimeInterval = 15
+    /// Refresh even when nothing changed, to push the stale date along. A
+    /// changed score rides along with this one.
     private let heartbeat: TimeInterval = 60
-    private let staleAfter: TimeInterval = 150
+    private let staleAfter: TimeInterval = 300
 
     init() {
         // Cards left behind by a session that did not end cleanly.
@@ -70,9 +77,9 @@ final class LiveActivityController {
         if gap >= heartbeat {
             due = true
         } else if state.status != sent?.status {
-            due = gap >= minGap
-        } else if abs(state.score - (sent?.score ?? state.score)) >= 2 {
-            due = gap >= scoreGap
+            // With the app on screen nobody looks at the card: the heartbeat
+            // is enough and the budget is saved for the locked phone.
+            due = gap >= minGap && UIApplication.shared.applicationState != .active
         } else {
             due = false
         }

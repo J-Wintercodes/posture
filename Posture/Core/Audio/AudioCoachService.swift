@@ -131,7 +131,7 @@ final class AudioCoachService: NSObject {
         // feedback mode: it says what is needed (a chime cannot) and tapping
         // it on the Lock Screen opens the routine.
         if case .checkIn(_, let title, let body, let routineID) = cue {
-            Notifier.post(title: title, body: body, id: Notifier.liveCheckInID, sound: false, routineID: routineID)
+            Notifier.post(title: title, body: body, id: Notifier.liveCheckInID, sound: false, routineID: routineID, checkIn: true)
             if mode == .silent { return }
         }
         switch mode {

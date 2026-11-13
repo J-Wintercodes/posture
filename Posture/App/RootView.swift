@@ -19,13 +19,14 @@ struct RootView: View {
 }
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case home, insights, tracker
+    case home, routines, insights, tracker
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .home: return "Home"
+        case .routines: return "Routines"
         case .insights: return "Insights"
         case .tracker: return "Journal"
         }
@@ -34,6 +35,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .home: return "house.fill"
+        case .routines: return "figure.flexibility"
         case .insights: return "chart.xyaxis.line"
         case .tracker: return "calendar"
         }
@@ -50,6 +52,7 @@ struct MainShell: View {
             Group {
                 switch tab {
                 case .home: HomeView()
+                case .routines: RoutinesView()
                 case .insights: InsightsView()
                 case .tracker: TrackerView()
                 }
@@ -131,6 +134,6 @@ struct FloatingTabBar: View {
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Theme.stroke, lineWidth: 1))
         .shadow(color: .black.opacity(0.5), radius: 18, y: 8)
-        .padding(.horizontal, 48)
+        .padding(.horizontal, 26)
     }
 }

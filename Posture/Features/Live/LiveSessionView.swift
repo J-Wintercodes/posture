@@ -2,35 +2,25 @@ import SwiftUI
 
 /// Full-screen overlay while a session is live. Built to be glanced at once
 /// and then locked away: the session keeps running without it.
+///
+/// The parts that follow every reading (the orb, the slouch meter) are small
+/// views of their own. The rest of the screen only reads what changes now
+/// and then, so it is not redrawn twelve times a second.
 struct LiveSessionView: View {
     @Environment(AppModel.self) private var app
     @State private var glow = false
 
     var body: some View {
         @Bindable var app = app
-        let session = app.session
-        let live = session.snapshot
         ZStack {
             Theme.bg.ignoresSafeArea()
             VStack(spacing: 0) {
                 topBar
                 pills
                     .padding(.top, 14)
-                Spacer(minLength: 12)
-                SpineOrbView(
-                    pitch: live.pitch,
-                    roll: live.roll,
-                    zone: live.zone,
-                    score: live.score,
-                    diameter: 176,
-                    dimmed: isDimmed
-                )
-                status
-                    .padding(.top, 22)
-                Spacer(minLength: 12)
-                banner
-                    .padding(.bottom, 14)
+                middle
                 buttons
+                    .padding(.top, 10)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 10)
@@ -39,6 +29,11 @@ struct LiveSessionView: View {
         .onAppear {
             withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { glow = true }
         }
+        .onChange(of: app.session.isRunning) { _, running in
+            // A session can end on its own (AirPods out for too long, or
+            // paused for too long). Do not leave a dead screen behind.
+            if !running { app.showLive = false }
+        }
         .sheet(item: $app.activeRoutine) { routine in
             RoutinePlayerView(routine: routine)
                 .environment(app)
@@ -46,14 +41,8 @@ struct LiveSessionView: View {
         }
     }
 
-    private var isDimmed: Bool {
-        if case .paused = app.session.phase { return true }
-        let context = app.session.snapshot.context
-        return context == .moving || context == .away
-    }
-
     private var accent: Color {
-        isDimmed ? Theme.textFaint : Theme.zone(app.session.snapshot.zone)
+        app.session.isResting ? Theme.textFaint : Theme.zone(app.session.zone)
     }
 
     // MARK: Chrome
@@ -71,7 +60,7 @@ struct LiveSessionView: View {
     }
 
     private var topBar: some View {
-        HStack {
+        HStack(spacing: 0) {
             Button {
                 app.showLive = false
             } label: {
@@ -83,19 +72,34 @@ struct LiveSessionView: View {
                     .overlay(Circle().strokeBorder(Theme.stroke, lineWidth: 1))
             }
             .accessibilityLabel("Minimise session")
-            Spacer()
+            // Same width as the clock, so the title sits in the middle.
+            .frame(width: 76, alignment: .leading)
+            Spacer(minLength: 0)
             HStack(spacing: 8) {
                 StatusDot(color: accent)
                 SectionLabel(phaseTitle, color: accent)
             }
-            Spacer()
-            Text(Fmt.clock(app.session.elapsed))
-                .font(.ui(16, .semibold))
-                .monospacedDigit()
-                .foregroundStyle(Theme.text)
-                .frame(minWidth: 52, alignment: .trailing)
+            Spacer(minLength: 0)
+            clock
         }
         .padding(.top, 8)
+    }
+
+    /// Counts up from the start of the session. The system draws it, so it
+    /// neither skips nor repeats a second the way a once-a-second timer does.
+    private var clock: some View {
+        Group {
+            if let startedAt = app.session.startedAt {
+                Text(startedAt, style: .timer)
+            } else {
+                Text("0:00")
+            }
+        }
+        .font(.ui(16, .semibold))
+        .monospacedDigit()
+        .multilineTextAlignment(.trailing)
+        .foregroundStyle(Theme.text)
+        .frame(width: 76, alignment: .trailing)
     }
 
     private var phaseTitle: String {
@@ -140,6 +144,31 @@ struct LiveSessionView: View {
         .overlay(Capsule().strokeBorder(Theme.stroke, lineWidth: 1))
     }
 
+    // MARK: Middle
+
+    /// Orb, status and banner. They scroll when they do not fit (a small
+    /// phone, a tall banner), so the bar on top and the buttons at the
+    /// bottom can never be pushed off the screen.
+    private var middle: some View {
+        let hasBanner = app.day.due != nil || !app.settings.value.seenLockHint
+        return GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 12)
+                    LiveOrb(diameter: hasBanner ? 132 : 176)
+                    status
+                        .padding(.top, 20)
+                    Spacer(minLength: 12)
+                    banner
+                        .padding(.bottom, 4)
+                }
+                .frame(maxWidth: .infinity, minHeight: geo.size.height)
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
+        }
+    }
+
     // MARK: Status
 
     private var status: some View {
@@ -155,21 +184,11 @@ struct LiveSessionView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 12)
-            loadMeter
+            LoadMeter()
             smallButton("Play both beeps", filled: false) { app.session.playTestTones() }
                 .padding(.top, 6)
         }
         .animation(.easeInOut(duration: 0.3), value: copy.title)
-    }
-
-    /// How close the coach is to speaking up.
-    private var loadMeter: some View {
-        let load = app.session.snapshot.load
-        return ThinBar(value: load, color: load > 0.75 ? Theme.ember : Theme.amber)
-            .frame(width: 96)
-            .opacity(load > 0.05 ? 1 : 0)
-            .padding(.top, 4)
-            .accessibilityLabel("Slouch pressure")
     }
 
     private var statusCopy: (title: String, line: String) {
@@ -183,11 +202,11 @@ struct LiveSessionView: View {
             break
         }
         let recentlySet = session.uprightSetAt.map { Date().timeIntervalSince($0) < 20 } ?? false
-        switch session.snapshot.context {
+        switch session.context {
         case .phone:
             // The screen is in the user's hand, so show the live reading and
             // say that it does not count right now.
-            let title = session.snapshot.zone == .aligned ? "Aligned" : "Live preview"
+            let title = session.zone == .aligned ? "Aligned" : "Live preview"
             return (title, recentlySet
                 ? "Upright set — the coach measures from here."
                 : "I stay quiet while the phone is in your hand. Put it down and the beeps are back.")
@@ -200,7 +219,7 @@ struct LiveSessionView: View {
         case .focused:
             break
         }
-        switch session.snapshot.zone {
+        switch session.zone {
         case .aligned:
             if recentlySet {
                 return ("Aligned", "Upright set — the coach measures from here.")
@@ -236,23 +255,16 @@ struct LiveSessionView: View {
         } else if !app.settings.value.seenLockHint {
             Card(padding: 16) {
                 VStack(alignment: .leading, spacing: 10) {
-                    SectionLabel("Your coach is on")
-                    HStack(alignment: .top, spacing: 12) {
+                    HStack(spacing: 8) {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(Theme.mint)
-                            .frame(width: 36, height: 36)
-                            .background(Theme.mint.opacity(0.12), in: Circle())
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Now lock your phone.")
-                                .font(.ui(16, .semibold))
-                                .foregroundStyle(Theme.text)
-                            Text("The session keeps running. A low beep means you are slouching, a brighter one means you fixed it. It stays quiet while the phone is in your hand.")
-                                .font(.ui(13))
-                                .foregroundStyle(Theme.textDim)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+                        SectionLabel("Now lock your phone", color: Theme.mint)
                     }
+                    Text("The session keeps running. A low beep means you are slouching, a brighter one means you fixed it. It stays quiet while the phone is in your hand.")
+                        .font(.ui(13))
+                        .foregroundStyle(Theme.textDim)
+                        .fixedSize(horizontal: false, vertical: true)
                     smallButton("Got it", filled: false) {
                         app.settings.update { $0.seenLockHint = true }
                     }
@@ -285,5 +297,47 @@ struct LiveSessionView: View {
                 app.endSession()
             }
         }
+    }
+}
+
+private extension SessionManager {
+    /// Nothing is being scored: the session is paused, or the user is on
+    /// their feet.
+    var isResting: Bool {
+        if case .paused = phase { return true }
+        return context == .moving || context == .away
+    }
+}
+
+/// The orb of the live screen. Redrawn with every reading.
+private struct LiveOrb: View {
+    @Environment(AppModel.self) private var app
+    var diameter: CGFloat
+
+    var body: some View {
+        let session = app.session
+        let live = session.snapshot
+        SpineOrbView(
+            pitch: live.pitch,
+            roll: live.roll,
+            zone: live.zone,
+            score: live.score,
+            diameter: diameter,
+            dimmed: session.isResting
+        )
+    }
+}
+
+/// How close the coach is to speaking up. Redrawn with every reading.
+private struct LoadMeter: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        let load = app.session.snapshot.load
+        ThinBar(value: load, color: load > 0.75 ? Theme.ember : Theme.amber)
+            .frame(width: 96)
+            .opacity(load > 0.05 ? 1 : 0)
+            .padding(.top, 4)
+            .accessibilityLabel("Slouch pressure")
     }
 }

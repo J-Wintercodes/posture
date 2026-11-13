@@ -41,6 +41,11 @@ final class DayCoach {
 
     @ObservationIgnored private(set) var lightPlaceID: String?
     @ObservationIgnored private var sittingSince = Date()
+    /// When the user last got onto the chair: the start, coming back from a
+    /// break, or the end of a routine that is done standing or on the floor.
+    /// A seated routine does not move it. Standing up is not suggested in
+    /// the first half hour after it.
+    @ObservationIgnored private var seatedSince = Date()
     @ObservationIgnored private var rotation = 0
     @ObservationIgnored private var lastStudyTouchAt = Date.distantPast
 
@@ -70,6 +75,8 @@ final class DayCoach {
         var rotation: Int
         var auto: Bool
         var placeID: String?
+        /// Optional: states saved before it existed lack it.
+        var seatedSince: Date?
     }
 
     init(settings: SettingsStore, store: SessionStore, log: DayLogStore, calendar: CalendarService,
@@ -139,7 +146,10 @@ final class DayCoach {
             // Not in a session at home: no timer, just a calm offer.
             advice = Advisor.homePick(for: next, hour: hour(of: now), doneToday: store.routinesDone(), lastDone: lastDone())
         } else {
-            advice = Advisor.advice(for: next, hour: hour(of: now), index: rotation, doneToday: store.routinesDone())
+            advice = Advisor.advice(
+                for: next, hour: hour(of: now), index: rotation,
+                doneToday: store.routinesDone(), sittingFor: sittingFor(at: now)
+            )
         }
         if advice != suggestion { suggestion = advice }
 
@@ -165,6 +175,12 @@ final class DayCoach {
         Calendar.current.component(.hour, from: date)
     }
 
+    /// How long the user will have been on the chair at `date`. Nil outside
+    /// study mode and tracking, where nobody knows.
+    private func sittingFor(at date: Date) -> TimeInterval? {
+        mode == .off ? nil : date.timeIntervalSince(seatedSince)
+    }
+
     /// Routine id to the last time it was finished.
     private func lastDone() -> [String: Date] {
         var result: [String: Date] = [:]
@@ -187,6 +203,7 @@ final class DayCoach {
         mode = .light
         anchor = now
         sittingSince = now
+        seatedSince = now
         rotation = 0
         due = nil
         lightEndsAt = now.addingTimeInterval(Self.lightSpan)
@@ -238,7 +255,12 @@ final class DayCoach {
         anchor = lastAt
         if now.timeIntervalSince(lastAt) < Self.dueLifetime {
             let situation = DayPlanner.resolve(plannerInput(now: now))
-            if let advice = Advisor.advice(for: situation, hour: hour(of: now), index: index, doneToday: store.routinesDone()) {
+            let advice = Advisor.advice(
+                for: situation, hour: hour(of: now), index: index,
+                doneToday: store.routinesDone(), sittingFor: sittingFor(at: lastAt)
+            )
+            // An announcement has nothing to start, so nothing is offered.
+            if let advice, !advice.isAnnouncement {
                 due = Due(advice: advice, trigger: .interval(minutes: settings.value.checkInMinutes), at: lastAt)
             }
         }
@@ -264,6 +286,7 @@ final class DayCoach {
         input.locationKnown = power.isLocationTrusted
         input.recentPain = log.recentPain(now: now)
         input.doneToday = store.routinesDone()
+        input.seatedSince = seatedSince
         input.maxSlots = Self.checkInIDs.count
 
         let slots = CheckInPlanner.plan(input)
@@ -280,7 +303,8 @@ final class DayCoach {
                 body: body,
                 id: Self.checkInIDs[index],
                 at: slot.date,
-                routineID: slot.advice.routine.id
+                routineID: slot.advice.isAnnouncement ? nil : slot.advice.routine.id,
+                checkIn: true
             )
         }
         let unused = Array(Self.checkInIDs.dropFirst(slots.count))
@@ -291,7 +315,8 @@ final class DayCoach {
         guard mode == .light, let anchor, let endsAt = lightEndsAt else { return }
         let state = LightState(
             anchor: anchor, sittingSince: sittingSince, endsAt: endsAt,
-            rotation: rotation, auto: lightIsAuto, placeID: lightPlaceID
+            rotation: rotation, auto: lightIsAuto, placeID: lightPlaceID,
+            seatedSince: seatedSince
         )
         if let data = try? JSONEncoder().encode(state) {
             defaults.set(data, forKey: lightKey)
@@ -315,6 +340,7 @@ final class DayCoach {
         mode = .light
         anchor = state.anchor
         sittingSince = state.sittingSince
+        seatedSince = state.seatedSince ?? state.sittingSince
         lightEndsAt = state.endsAt
         rotation = state.rotation
         lightIsAuto = state.auto
@@ -329,6 +355,7 @@ final class DayCoach {
         mode = .tracking
         anchor = now
         sittingSince = now
+        seatedSince = now
         rotation = 0
         due = nil
         lastStudyTouchAt = now
@@ -390,6 +417,7 @@ final class DayCoach {
         guard mode == .tracking else { return }
         anchor = now
         sittingSince = now
+        seatedSince = now
         due = nil
     }
 
@@ -398,16 +426,20 @@ final class DayCoach {
         rotation += 1
         anchor = now
         refresh(now: now)
-        guard let advice = Advisor.advice(for: context, hour: hour(of: now), index: index, doneToday: store.routinesDone()) else {
-            return
-        }
-        due = Due(advice: advice, trigger: trigger, at: now)
+        let picked = Advisor.advice(
+            for: context, hour: hour(of: now), index: index,
+            doneToday: store.routinesDone(), sittingFor: sittingFor(at: now)
+        )
+        guard let advice = picked else { return }
+        // In a lecture it is only said, there is nothing to start.
+        let announcement = advice.isAnnouncement
+        due = announcement ? nil : Due(advice: advice, trigger: trigger, at: now)
         let language = settings.value.coachLanguage
         coach.deliver(.checkIn(
             spoken: AdviceText.spoken(advice, trigger: trigger, language: language),
             title: AdviceText.title(advice, language: language),
             body: AdviceText.body(advice, trigger: trigger, language: language),
-            routineID: advice.routine.id
+            routineID: announcement ? nil : advice.routine.id
         ))
     }
 
@@ -484,6 +516,11 @@ final class DayCoach {
         if mode != .off {
             anchor = now
             sittingSince = now
+            // Only a routine that takes the user off the chair counts as
+            // having got up.
+            if routine.id == RoutineCatalog.standUp.id || routine.homeOnly {
+                seatedSince = now
+            }
         }
         if mode == .light {
             lightEndsAt = now.addingTimeInterval(Self.lightSpan)

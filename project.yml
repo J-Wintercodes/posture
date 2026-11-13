@@ -29,6 +29,8 @@ targets:
       properties:
         CFBundleDisplayName: Posture
         NSSupportsLiveActivities: true
+        # A larger budget for updating the Lock Screen card from the app.
+        NSSupportsLiveActivitiesFrequentUpdates: true
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations:

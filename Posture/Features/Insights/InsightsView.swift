@@ -91,8 +91,8 @@ struct InsightsView: View {
                         .font(.ui(12, .semibold))
                         .foregroundStyle(Theme.textFaint)
                 }
-                PostureZonesHeatmap(cells: grid)
-                    .frame(maxWidth: 330)
+                PostureZonesFigure(cells: grid)
+                    .frame(maxWidth: 340)
                     .frame(maxWidth: .infinity)
                 Text(zonesLine(grid, total: total))
                     .font(.ui(13))
@@ -104,7 +104,7 @@ struct InsightsView: View {
 
     private func zonesLine(_ grid: [Double], total: Double) -> String {
         guard total > 60 else {
-            return "Where your head spends its time. The centre is your calibrated upright; tiles light up as you track."
+            return "Where your head spends its time, seen from the side and from behind. Once you have tracked a little, the figure moves through your week and lingers where you sat longest."
         }
         // Rows 0...2 are more than 7.5° forward of the baseline.
         let forward = grid.prefix(ZoneGrid.side * 3).reduce(0, +)
@@ -120,7 +120,7 @@ struct InsightsView: View {
                 right += seconds
             }
         }
-        var line = "\(share)% of your tracked time was spent tilted forward."
+        var line = "The bright figure lingers where you sat longest, the faint outlines are the positions you held. \(share)% of your tracked time was spent tilted forward."
         if left > total * 0.25, left > right * 1.6 {
             line += " You also lean to the left a lot — check where your screen and notes sit."
         } else if right > total * 0.25, right > left * 1.6 {

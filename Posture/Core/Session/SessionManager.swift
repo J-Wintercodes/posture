@@ -36,6 +36,13 @@ final class SessionManager {
 
     private(set) var phase: Phase = .idle
     private(set) var snapshot = LiveSnapshot()
+    /// Zone and context of the latest reading, on their own. `snapshot`
+    /// changes with every frame; a view that only needs these two reads
+    /// them here and is not redrawn twelve times a second.
+    private(set) var zone: PostureZone = .aligned
+    private(set) var context: PostureContext = .settling
+    /// When the running session began. Nil while idle.
+    private(set) var startedAt: Date?
     private(set) var elapsed: TimeInterval = 0
     private(set) var uprightSetAt: Date?
     private(set) var isAutoStarted = false
@@ -114,8 +121,12 @@ final class SessionManager {
         var placeName: String?
         if case .auto(let name) = trigger { placeName = name }
         isAutoStarted = placeName != nil
-        draft = SessionDraft(start: Date(), placeName: placeName, autoStarted: isAutoStarted)
+        let newDraft = SessionDraft(start: Date(), placeName: placeName, autoStarted: isAutoStarted)
+        draft = newDraft
+        startedAt = newDraft.start
         snapshot = LiveSnapshot()
+        zone = .aligned
+        context = .settling
         elapsed = 0
         uprightSetAt = nil
         lastFrameAt = Date()
@@ -159,6 +170,7 @@ final class SessionManager {
             }
         }
         draft = nil
+        startedAt = nil
         coach.deliver(.sessionEnded)
         coach.endSession()
         lockScreenCard.end()
@@ -318,6 +330,8 @@ final class SessionManager {
                 load: reading.load
             )
             if next != snapshot { snapshot = next }
+            if next.zone != zone { zone = next.zone }
+            if next.context != context { context = next.context }
         }
     }
 

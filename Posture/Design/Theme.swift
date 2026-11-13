@@ -74,9 +74,11 @@ enum Fmt {
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%02d:%02d", m, s)
     }
 
-    /// "09:02"
+    /// "09:02". The fixed locale keeps it at 24 hours: without it iOS
+    /// rewrites the pattern on a phone set to the 12-hour clock.
     static func time(_ date: Date) -> String {
         let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "HH:mm"
         return f.string(from: date)
     }

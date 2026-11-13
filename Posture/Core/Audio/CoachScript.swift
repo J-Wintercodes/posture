@@ -7,8 +7,9 @@ enum CoachCue: Equatable {
     case nudge(NudgeKind, level: Int)
     case recovered
     /// A check-in from the day coach: what is needed now. The texts are
-    /// already in the coach language.
-    case checkIn(spoken: String, title: String, body: String, routineID: String)
+    /// already in the coach language. Without a routine it is only an
+    /// announcement (in a lecture).
+    case checkIn(spoken: String, title: String, body: String, routineID: String?)
     case pausedLowPower
     case resumed
     case uprightSet

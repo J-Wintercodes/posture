@@ -14,6 +14,11 @@ struct Advice: Equatable, Sendable {
 
     var routine: Routine
     var note: Note
+
+    /// In a lecture nothing is offered to do: the check-in is one sentence
+    /// and no routine opens. `routine` is then only what the user could
+    /// start by hand.
+    var isAnnouncement: Bool { note == .lecture }
 }
 
 /// Why a check-in fires.
@@ -31,8 +36,14 @@ enum CheckInTrigger: Equatable, Sendable {
 /// Picks what is needed for the situation. A pure function of the day
 /// context, the hour and how many check-ins there have been.
 enum Advisor {
-    /// Nil means "say nothing" (in the gym).
-    static func advice(for context: DayContext, hour: Int, index: Int, doneToday: Set<String> = []) -> Advice? {
+    /// Getting up is not suggested before this much sitting.
+    static let standUpAfter: TimeInterval = 30 * 60
+
+    /// Nil means "say nothing" (in the gym). `sittingFor` is how long the
+    /// user has been on the chair at the time of the check-in; nil when
+    /// nobody knows.
+    static func advice(for context: DayContext, hour: Int, index: Int, doneToday: Set<String> = [],
+                       sittingFor: TimeInterval? = nil) -> Advice? {
         let cycle: [Routine]
         let note: Advice.Note
 
@@ -41,7 +52,7 @@ enum Advisor {
             return nil
 
         case .uni:
-            // In a lecture: only what nobody notices.
+            // In a lecture: no exercise, only a short announcement.
             return Advice(routine: RoutineCatalog.lectureReset, note: .lecture)
 
         case .home:
@@ -78,16 +89,23 @@ enum Advisor {
             }
         }
 
-        return Advice(routine: pick(from: cycle, index: index, doneToday: doneToday), note: note)
+        // Someone who sat down a quarter of an hour ago is not sent off the
+        // chair again: the next routine of the cycle takes that slot.
+        var skipping: Set<String> = []
+        if let sittingFor, sittingFor < standUpAfter - 1 {
+            skipping.insert(RoutineCatalog.standUp.id)
+        }
+        return Advice(routine: pick(from: cycle, index: index, doneToday: doneToday, skipping: skipping), note: note)
     }
 
     /// Walks the cycle from `index` and skips once-a-day routines that are
-    /// already done.
-    static func pick(from cycle: [Routine], index: Int, doneToday: Set<String>) -> Routine {
+    /// already done, and everything in `skipping`.
+    static func pick(from cycle: [Routine], index: Int, doneToday: Set<String>, skipping: Set<String> = []) -> Routine {
         guard !cycle.isEmpty else { return RoutineCatalog.eyeReset }
         let start = ((index % cycle.count) + cycle.count) % cycle.count
         for offset in 0..<cycle.count {
             let candidate = cycle[(start + offset) % cycle.count]
+            if skipping.contains(candidate.id) { continue }
             if candidate.oncePerDay, doneToday.contains(candidate.id) { continue }
             return candidate
         }
@@ -144,15 +162,29 @@ enum Advisor {
 enum AdviceText {
     /// "Time for: Eye + Posture Reset · 30s"
     static func title(_ advice: Advice, language: CoachLanguage) -> String {
+        if advice.isAnnouncement {
+            return language == .de ? "Kurzer Check-in" : "Quick check-in"
+        }
         let lead = language == .de ? "Zeit für" : "Time for"
         return "\(lead): \(advice.routine.name.text(language)) · \(advice.routine.durationLabel)"
     }
 
     static func body(_ advice: Advice, trigger: CheckInTrigger, language: CoachLanguage) -> String {
-        join([lead(trigger, language: language), hint(advice, language: language)])
+        if advice.isAnnouncement {
+            return join([lead(trigger, language: language), announcement(language)])
+        }
+        return join([lead(trigger, language: language), hint(advice, language: language)])
+    }
+
+    /// The one sentence of a check-in that offers no routine.
+    static func announcement(_ language: CoachLanguage) -> String {
+        language == .de ? "Kurz aufrichten und durchatmen." : "Sit tall for a moment and take a breath."
     }
 
     static func spoken(_ advice: Advice, trigger: CheckInTrigger, language: CoachLanguage) -> String {
+        if advice.isAnnouncement {
+            return body(advice, trigger: trigger, language: language)
+        }
         let routine = advice.routine
         let call = language == .de
             ? "Zeit für \(routine.spokenName.de), \(routine.durationWords(.de))."
@@ -237,6 +269,9 @@ enum CheckInPlanner {
         var locationKnown = false
         var recentPain: Int?
         var doneToday: Set<String> = []
+        /// When the user sat down, as far as anyone knows. Standing up is
+        /// not suggested in the first half hour after it.
+        var seatedSince: Date?
         var calendar = Calendar.current
         var maxSlots = 10
     }
@@ -268,7 +303,11 @@ enum CheckInPlanner {
             query.recentPain = input.recentPain
             let context = DayPlanner.resolve(query)
             let hour = input.calendar.component(.hour, from: date)
-            guard let advice = Advisor.advice(for: context, hour: hour, index: input.rotation + k - 1, doneToday: input.doneToday) else {
+            let sittingFor = input.seatedSince.map { date.timeIntervalSince($0) }
+            guard let advice = Advisor.advice(
+                for: context, hour: hour, index: input.rotation + k - 1,
+                doneToday: input.doneToday, sittingFor: sittingFor
+            ) else {
                 continue
             }
             slots.append(Slot(date: date, advice: advice, isLast: false))

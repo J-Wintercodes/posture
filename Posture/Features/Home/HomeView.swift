@@ -23,7 +23,6 @@ struct HomeView: View {
             nowCard
             actionCard
             todayCard(today)
-            routinesCard
             weekCard(week)
             baselineCard
             discover
@@ -100,58 +99,33 @@ struct HomeView: View {
 
     // MARK: Hero
 
+    /// The orb in the middle is the posture of this moment. To its left, the
+    /// average of the day.
     private func hero(today: DaySummary) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            SectionLabel("Your day")
-            HStack(alignment: .center, spacing: 0) {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(today.score.map { "\($0)" } ?? "—")
-                            .font(.ui(68, .semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(Theme.text)
-                        Text("/100")
-                            .font(.ui(16, .medium))
-                            .foregroundStyle(Theme.textFaint)
-                    }
-                    Text(subline(for: today.score))
-                        .font(.serif(21))
-                        .foregroundStyle(Theme.textDim)
-                }
-                Spacer(minLength: 0)
-                heroOrb(today: today)
-            }
-            statsStrip(today)
+        let diameter: CGFloat = 112
+        return ZStack(alignment: .topLeading) {
+            LivePostureOrb(diameter: diameter)
+                .frame(maxWidth: .infinity)
+            // As tall as the orb, so the number sits level with its centre.
+            dayAverage(today)
+                .frame(height: diameter * 1.14)
         }
         .padding(.top, 6)
     }
 
-    private func heroOrb(today: DaySummary) -> some View {
-        let live = app.session.snapshot
-        let running = app.session.isRunning
-        return SpineOrbView(
-            pitch: running ? live.pitch : 0,
-            roll: running ? live.roll : 0,
-            zone: running ? live.zone : .aligned,
-            diameter: 104
-        )
-    }
-
-    private func subline(for score: Int?) -> String {
-        guard let score else { return "A fresh page." }
-        if score >= 85 { return "In a good rhythm." }
-        if score >= 70 { return "Holding steady." }
-        return "Room to rise."
-    }
-
-    private func statsStrip(_ today: DaySummary) -> some View {
-        let resets = app.store.resetsCount()
-        let sat = app.log.sittingSeconds(on: Date())
-        return HStack(spacing: 14) {
-            statColumn("Posture", value: today.score.map { "\($0)" } ?? "—", progress: Double(today.score ?? 0) / 100, color: Theme.mint)
-            statColumn("Sat today", value: Fmt.duration(sat), progress: sat / (8 * 3600), color: Theme.amber)
-            statColumn("Resets", value: "\(resets)/5", progress: Double(resets) / 5, color: Theme.amber)
+    private func dayAverage(_ today: DaySummary) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(today.score.map { "\($0)" } ?? "—")
+                .font(.ui(40, .semibold))
+                .monospacedDigit()
+                .foregroundStyle(today.score == nil ? Theme.textFaint : Theme.text)
+            Text("DAY AVG")
+                .font(.ui(10, .semibold))
+                .tracking(1.4)
+                .foregroundStyle(Theme.textFaint)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(today.score.map { "Average of the day \($0)" } ?? "No average yet today")
     }
 
     // MARK: Before bed
@@ -188,37 +162,17 @@ struct HomeView: View {
         }
     }
 
-    private func statColumn(_ label: String, value: String, progress: Double, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(label)
-                    .font(.ui(12, .medium))
-                    .foregroundStyle(Theme.textDim)
-                Spacer()
-                Text(value)
-                    .font(.ui(12, .semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.text)
-            }
-            ThinBar(value: progress, color: color)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
     // MARK: Right now
 
-    /// What the calendar and the location say, and what is needed for it.
+    /// What the calendar and the location say. What to do about it lives in
+    /// the Routines tab.
     private var nowCard: some View {
-        let day = app.day
-        let context = day.context
-        let isDue = day.due != nil
-        let advice = day.due?.advice ?? day.suggestion
-        let accent = isDue ? Theme.amber : Theme.mint
+        let context = app.day.context
         return Card {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
-                    StatusDot(color: accent)
-                    SectionLabel(nowLabel(isDue: isDue, context: context), color: accent)
+                    StatusDot(color: Theme.mint)
+                    SectionLabel("Right now", color: Theme.mint)
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(situationTitle(context))
@@ -230,10 +184,7 @@ struct HomeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 planRows
-                Rectangle().fill(Theme.stroke).frame(height: 1)
-                if let advice {
-                    adviceBlock(advice)
-                } else {
+                if context.situation == .gym {
                     Text("Training time. I stay quiet until you are done.")
                         .font(.serif(18, italic: true))
                         .foregroundStyle(Theme.textDim)
@@ -241,13 +192,6 @@ struct HomeView: View {
                 setupHints
             }
         }
-    }
-
-    private func nowLabel(isDue: Bool, context: DayContext) -> String {
-        if isDue { return "Check-in due" }
-        // At home outside a session nothing is timed: it is just an offer.
-        if context.situation == .home, app.day.mode == .off { return "At home · whenever you like" }
-        return "Right now"
     }
 
     private func situationTitle(_ context: DayContext) -> String {
@@ -337,34 +281,6 @@ struct HomeView: View {
         }
     }
 
-    private func adviceBlock(_ advice: Advice) -> some View {
-        let hint = AdviceText.hint(advice, language: .en)
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 14) {
-                Image(systemName: advice.routine.icon)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(Theme.mint)
-                    .frame(width: 52, height: 52)
-                    .background(Theme.mint.opacity(0.12), in: Circle())
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(advice.routine.name.en)
-                        .font(.serif(23))
-                        .foregroundStyle(Theme.text)
-                    Text("\(advice.routine.durationLabel) · \(advice.routine.focus)")
-                        .font(.ui(13))
-                        .foregroundStyle(Theme.textDim)
-                }
-            }
-            if !hint.isEmpty {
-                Text(hint)
-                    .font(.ui(13))
-                    .foregroundStyle(Theme.textDim)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            PillButton(title: "Start", icon: "play.fill") { app.open(advice.routine) }
-        }
-    }
-
     /// What is still missing for the plan to work.
     @ViewBuilder
     private var setupHints: some View {
@@ -420,10 +336,16 @@ struct HomeView: View {
                         Text(running ? "Theo is with you." : (reminders ? "Study mode is on." : "Ready when you are."))
                             .font(.serif(27))
                             .foregroundStyle(Theme.text)
-                        Text(actionSubtext(running: running, reminders: reminders))
-                            .font(.ui(14))
-                            .foregroundStyle(Theme.textDim)
-                            .fixedSize(horizontal: false, vertical: true)
+                        Group {
+                            if running {
+                                RunningForText()
+                            } else {
+                                Text(actionSubtext(reminders: reminders))
+                            }
+                        }
+                        .font(.ui(14))
+                        .foregroundStyle(Theme.textDim)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
                     AirPodsGlyph(connected: connected)
@@ -464,11 +386,8 @@ struct HomeView: View {
         return connected ? "AirPods connected" : "No AirPods needed"
     }
 
-    private func actionSubtext(running: Bool, reminders: Bool) -> String {
+    private func actionSubtext(reminders: Bool) -> String {
         let minutes = app.settings.value.checkInMinutes
-        if running {
-            return "Running for \(Fmt.duration(app.session.elapsed)). Lock your phone and carry on."
-        }
         if reminders {
             let next = app.day.nextCheckInAt.map { "Next check-in at \(Fmt.time($0)). " } ?? ""
             return next + "This time counts as sitting. No sensors, no audio: it costs next to no battery."
@@ -491,80 +410,6 @@ struct HomeView: View {
                 DayTimeline(minutes: today.minutes)
             }
         }
-    }
-
-    // MARK: Routines
-
-    private var routinesCard: some View {
-        let done = app.store.resetsCount()
-        let situation = app.day.context.situation
-        let hasHome = app.settings.value.places.contains { $0.kind == .home }
-        return Card {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    SectionLabel("Routines")
-                    Spacer()
-                    Text("\(done) done today")
-                        .font(.ui(12, .semibold))
-                        .foregroundStyle(Theme.textDim)
-                }
-                VStack(spacing: 4) {
-                    ForEach(RoutineCatalog.all) { routine in
-                        routineRow(routine, available: Advisor.isAvailable(routine, in: situation))
-                    }
-                }
-                if situation != .home {
-                    Text(hasHome
-                         ? "The floor routines for back and nervous system unlock when you are at home."
-                         : "The floor routines for back and nervous system are for home. Save your home in the profile to unlock them.")
-                        .font(.ui(12))
-                        .foregroundStyle(Theme.textFaint)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-    }
-
-    private func routineRow(_ routine: Routine, available: Bool) -> some View {
-        Button {
-            app.open(routine)
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: routine.icon)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(available ? Theme.mint : Theme.textFaint)
-                    .frame(width: 38, height: 38)
-                    .background(Color.white.opacity(0.05), in: Circle())
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(routine.name.en)
-                        .font(.ui(15, .semibold))
-                        .foregroundStyle(available ? Theme.text : Theme.textDim)
-                    Text("\(routine.durationLabel) · \(routine.focus)")
-                        .font(.ui(12))
-                        .foregroundStyle(Theme.textDim)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-                if available {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Theme.textDim)
-                } else {
-                    HStack(spacing: 4) {
-                        Image(systemName: "house.fill").font(.system(size: 9, weight: .bold))
-                        Text("HOME").font(.ui(9, .bold)).tracking(1.2)
-                    }
-                    .foregroundStyle(Theme.textFaint)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(Color.white.opacity(0.06), in: Capsule())
-                }
-            }
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PressableStyle())
-        .disabled(!available)
     }
 
     // MARK: Last seven days
@@ -662,6 +507,90 @@ struct HomeView: View {
             .scrollIndicators(.hidden)
             .scrollClipDisabled()
         }
+    }
+}
+
+/// The orb with the posture of this moment: the live score inside, the zone
+/// as a word below. Its own view, so the twelve readings a second redraw
+/// this and nothing else on the screen.
+private struct LivePostureOrb: View {
+    @Environment(AppModel.self) private var app
+    var diameter: CGFloat = 112
+
+    var body: some View {
+        let session = app.session
+        let live = session.snapshot
+        let state = currentState(session)
+        VStack(spacing: 12) {
+            SpineOrbView(
+                pitch: state.isLive ? live.pitch : 0,
+                roll: state.isLive ? live.roll : 0,
+                zone: state.isLive ? live.zone : .aligned,
+                score: state.isLive ? live.score : nil,
+                placeholder: "–",
+                diameter: diameter,
+                dimmed: !state.isLive
+            )
+            HStack(spacing: 8) {
+                StatusDot(color: state.color)
+                SectionLabel(state.title, color: state.color)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if session.isRunning { app.showLive = true }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(state.isLive ? "Posture right now \(live.score), \(state.title)" : state.title)
+    }
+
+    private struct LiveState {
+        var title: String
+        var color: Color
+        /// False while there is no reading worth showing.
+        var isLive: Bool
+    }
+
+    private func currentState(_ session: SessionManager) -> LiveState {
+        switch session.phase {
+        case .idle:
+            return LiveState(title: "No session", color: Theme.textFaint, isLive: false)
+        case .paused(.lowPower):
+            return LiveState(title: "Paused", color: Theme.textFaint, isLive: false)
+        case .paused(.headphonesOut):
+            return LiveState(title: "AirPods out", color: Theme.textFaint, isLive: false)
+        case .live:
+            break
+        }
+        let zone = session.snapshot.zone
+        switch session.snapshot.context {
+        case .moving, .away:
+            return LiveState(title: "On the move", color: Theme.textFaint, isLive: false)
+        case .settling:
+            return LiveState(title: "Settling", color: Theme.zone(zone), isLive: true)
+        case .lookingDown:
+            return LiveState(title: "Looking down", color: Theme.zone(zone), isLive: true)
+        case .phone, .focused:
+            break
+        }
+        switch zone {
+        case .aligned:
+            return LiveState(title: "Aligned", color: Theme.mint, isLive: true)
+        case .drifting:
+            return LiveState(title: "Drifting", color: Theme.amber, isLive: true)
+        case .slouching:
+            return LiveState(title: "Slouching", color: Theme.ember, isLive: true)
+        }
+    }
+}
+
+/// "Running for 14m." Reads the session clock on its own, so the seconds
+/// ticking by do not redraw the whole home screen.
+private struct RunningForText: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        Text("Running for \(Fmt.duration(app.session.elapsed)). Lock your phone and carry on.")
     }
 }
 

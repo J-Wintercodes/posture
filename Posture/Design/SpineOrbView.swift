@@ -1,21 +1,33 @@
 import SwiftUI
 
-/// The central motif: a dark glossy sphere inside a tilted, glowing orbit
-/// ring, with six vertebrae floating below it.
+/// The central motif: a dark glossy sphere inside a glowing orbit ring, with
+/// six vertebrae floating below it.
 ///
 /// The ring is the head. Pitch opens or flattens it, roll tips it sideways,
 /// and its colour follows the posture zone. The vertebrae bow forward as the
-/// spine rounds.
+/// spine rounds. A level head draws a level ring and a straight stack.
 struct SpineOrbView: View {
     var pitch: Double = 0
     var roll: Double = 0
     var zone: PostureZone = .aligned
     var score: Int?
+    /// Shown in the sphere when there is no score, for example a dash.
+    var placeholder: String?
     var diameter: CGFloat = 132
     var showsSpine = true
     var dimmed = false
 
     private var tint: Color { dimmed ? Theme.textFaint : Theme.zone(zone) }
+
+    /// The sideways lean that is drawn. An AirPod never sits perfectly
+    /// level in the ear, and the engine ignores the first degrees as well,
+    /// so a small roll is drawn as none.
+    static func visibleRoll(_ roll: Double) -> Double {
+        let free = 3.0
+        if roll > free { return roll - free }
+        if roll < -free { return roll + free }
+        return 0
+    }
 
     var body: some View {
         VStack(spacing: diameter * 0.10) {
@@ -25,7 +37,7 @@ struct SpineOrbView: View {
             .frame(width: diameter * 1.56, height: diameter * 1.14)
 
             if showsSpine {
-                SpineStack(pitch: pitch, roll: roll, tint: tint, unit: diameter)
+                SpineStack(pitch: pitch, roll: Self.visibleRoll(roll), tint: tint, unit: diameter)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -36,7 +48,8 @@ struct SpineOrbView: View {
         let a = Double(diameter) * 0.74
         let squash = 0.24 + min(max(pitch, -20), 35) / 35 * 0.20
         let b = a * squash
-        let tilt = -16 + min(max(roll, -30), 30) * 0.9
+        // No tilt of its own: the ring is only as crooked as the head is.
+        let tilt = min(max(Self.visibleRoll(roll), -30), 30) * 0.9
         let theta = phase.truncatingRemainder(dividingBy: 9) / 9 * 2 * Double.pi
         let lx = a * cos(theta)
         let ly = b * sin(theta)
@@ -51,11 +64,11 @@ struct SpineOrbView: View {
             sphere
             ringHalf(a: a, b: b, tilt: tilt, back: false)
             satellite.offset(x: dx, y: dy).opacity(inFront ? 1 : 0)
-            if let score {
-                Text("\(score)")
+            if let text = score.map({ "\($0)" }) ?? placeholder {
+                Text(text)
                     .font(.system(size: diameter * 0.36, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.white.opacity(score == nil ? 0.45 : 1))
                     .shadow(color: .black.opacity(0.6), radius: 6)
             }
         }

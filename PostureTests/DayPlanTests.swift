@@ -228,6 +228,43 @@ final class AdvisorTests: XCTestCase {
         XCTAssertEqual(Advisor.homePick(for: home, hour: 21, doneToday: [RoutineCatalog.downshift.id]).routine, RoutineCatalog.spineFlow)
     }
 
+    func testNoStandUpInTheFirstHalfHourOfSitting() {
+        for index in 0..<8 {
+            let early = Advisor.advice(for: context(.library), hour: 14, index: index, sittingFor: 20 * 60)
+            XCTAssertNotEqual(early?.routine, RoutineCatalog.standUp, "check-in \(index)")
+        }
+        // Index 1 is the stand-up slot of the library cycle. Sat down 20
+        // minutes ago: the next routine of the cycle takes it.
+        XCTAssertEqual(
+            Advisor.advice(for: context(.library), hour: 14, index: 1, sittingFor: 20 * 60)?.routine,
+            RoutineCatalog.deskMobility
+        )
+        // From half an hour on, and when nobody knows, it is offered.
+        XCTAssertEqual(
+            Advisor.advice(for: context(.library), hour: 14, index: 1, sittingFor: 30 * 60)?.routine,
+            RoutineCatalog.standUp
+        )
+        XCTAssertEqual(Advisor.advice(for: context(.library), hour: 14, index: 1)?.routine, RoutineCatalog.standUp)
+    }
+
+    func testLectureIsOnlyAnAnnouncement() {
+        XCTAssertEqual(Advisor.advice(for: context(.uni), hour: 10, index: 0)?.isAnnouncement, true)
+        XCTAssertEqual(Advisor.advice(for: context(.library), hour: 10, index: 0)?.isAnnouncement, false)
+        XCTAssertEqual(Advisor.advice(for: context(.home), hour: 10, index: 0)?.isAnnouncement, false)
+
+        // No routine is named, in the notification or by Theo.
+        let lecture = Advice(routine: RoutineCatalog.lectureReset, note: .lecture)
+        XCTAssertEqual(AdviceText.title(lecture, language: .de), "Kurzer Check-in")
+        XCTAssertEqual(
+            AdviceText.body(lecture, trigger: .interval(minutes: 30), language: .de),
+            "Wieder 30 Minuten um. Kurz aufrichten und durchatmen."
+        )
+        XCTAssertEqual(
+            AdviceText.spoken(lecture, trigger: .timer(minutes: 45), language: .en),
+            "45 minutes without a break. Sit tall for a moment and take a breath."
+        )
+    }
+
     func testAvailability() {
         XCTAssertTrue(Advisor.isAvailable(RoutineCatalog.spineFlow, in: .home))
         XCTAssertFalse(Advisor.isAvailable(RoutineCatalog.spineFlow, in: .library))
@@ -274,6 +311,18 @@ final class CheckInPlannerTests: XCTestCase {
         XCTAssertEqual(slots.first?.date, start.addingTimeInterval(90 * 60))
         // Third check-in of the library/elsewhere cycle.
         XCTAssertEqual(slots.first?.advice.routine, RoutineCatalog.deskMobility)
+    }
+
+    func testNoStandUpBeforeHalfAnHourOfSitting() {
+        let start = PlanClock.at(9)
+        var query = input(start: start, minutes: 10)
+        query.seatedSince = start
+        let slots = CheckInPlanner.plan(query)
+        let byTime = Dictionary(uniqueKeysWithValues: slots.map { ($0.date, $0.advice.routine) })
+        // 09:20 is the stand-up slot of the cycle, after 20 minutes of sitting.
+        XCTAssertEqual(byTime[PlanClock.at(9, 20)], RoutineCatalog.deskMobility)
+        // 09:40 is the next one, and by then it has been 40 minutes.
+        XCTAssertEqual(byTime[PlanClock.at(9, 40)], RoutineCatalog.standUp)
     }
 
     func testCalendarShapesLaterSlots() {
