@@ -90,9 +90,9 @@ final class SessionManager {
     @ObservationIgnored var onGaveUp: (() -> Void)?
 
     /// How long a session that belongs to a library waits for the AirPods
-    /// before it gives up. Long enough for a lunch break. Without a limit a
-    /// missed "left the library" would keep the audio engine up all night.
-    static let libraryWait: TimeInterval = 2 * 3600
+    /// before it gives up. Without a limit a missed "left the library" would
+    /// keep the audio engine up all night.
+    static let libraryWait: TimeInterval = 3600
 
     /// A paused session is closed after this long so nothing idles forever.
     /// With the AirPods out the silent audio engine is all that still runs,

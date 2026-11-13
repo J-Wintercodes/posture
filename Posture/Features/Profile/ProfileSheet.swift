@@ -415,7 +415,7 @@ struct ProfileSheet: View {
                 }
                 .tint(Theme.teal)
                 if isOn {
-                    Text("The AirPods have to be connected to this iPhone. While you are there the app stays awake to notice them, which costs some battery. After two hours without AirPods it stops waiting until you open the app.")
+                    Text("The AirPods have to be connected to this iPhone. While you are there the app stays awake to notice them, which costs some battery. After an hour without AirPods it stops waiting until you open the app.")
                         .font(.ui(13))
                         .foregroundStyle(Theme.textDim)
                         .fixedSize(horizontal: false, vertical: true)
