@@ -9,3 +9,7 @@ build/
 *.xcuserstate
 xcuserdata/
 .DS_Store
+
+# Piper voice models for tools/voice/make_voice.py (downloaded, ~120 MB each)
+tools/voice/models/
+__pycache__/

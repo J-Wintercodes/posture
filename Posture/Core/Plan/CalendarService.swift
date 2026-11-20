@@ -38,6 +38,10 @@ final class CalendarService {
         }
     }
 
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+    }
+
     private func refreshAuthorization() {
         let status = EKEventStore.authorizationStatus(for: .event)
         hasAccess = status == .fullAccess

@@ -193,6 +193,10 @@ final class DayLogStore {
     func eraseAll() {
         spans = []
         pain = [:]
+        moving = []
+        // Without this the next read would only start where the old record
+        // ended, and the walking before it would never come back.
+        motionReadUntil = nil
         save()
     }
     #endif

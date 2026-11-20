@@ -33,12 +33,13 @@ final class HeadphoneMotionService: NSObject {
     @ObservationIgnored private var lastFrameAt = Date.distantPast
     @ObservationIgnored private var simulationTimer: Timer?
     @ObservationIgnored private var synthetic = SyntheticHead()
+    @ObservationIgnored private var routeObserver: NSObjectProtocol?
 
     override init() {
         super.init()
         manager.delegate = self
         refreshRoute()
-        _ = NotificationCenter.default.addObserver(
+        routeObserver = NotificationCenter.default.addObserver(
             forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
@@ -46,6 +47,10 @@ final class HeadphoneMotionService: NSObject {
                 self?.onConnectionChange?()
             }
         }
+    }
+
+    deinit {
+        if let routeObserver { NotificationCenter.default.removeObserver(routeObserver) }
     }
 
     // MARK: Authorization

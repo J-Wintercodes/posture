@@ -70,6 +70,10 @@ final class LocationAndPowerGuard: NSObject {
         }
     }
 
+    deinit {
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+
     // MARK: Power
 
     private func refreshPower() {

@@ -40,13 +40,27 @@ final class SessionStore {
 
     // MARK: Writing
 
+    /// Sessions and resets older than this are dropped. Each session carries
+    /// its minute buckets, so without a limit the journal (rewritten on every
+    /// checkpoint) would only ever grow. The screens look back seven days;
+    /// the hourly profile then covers the last half year.
+    static let keepDays = 180
+
     func upsert(_ record: SessionRecord) {
         if let index = sessions.firstIndex(where: { $0.id == record.id }) {
             sessions[index] = record
         } else {
             sessions.append(record)
+            prune(now: record.start)
         }
         save()
+    }
+
+    /// Runs when a new session starts, not on every checkpoint.
+    private func prune(now: Date) {
+        guard let cutoff = calendar.date(byAdding: .day, value: -Self.keepDays, to: now) else { return }
+        sessions.removeAll { $0.start < cutoff }
+        resets.removeAll { $0 < cutoff }
     }
 
     func remove(id: UUID) {

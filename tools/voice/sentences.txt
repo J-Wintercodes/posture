@@ -1,0 +1,656 @@
+v_de_e76bbf779400c30f	10 Minuten ohne Pause.
+v_de_43ea79667fd38835	100 Minuten ohne Pause.
+v_de_b5c8079e9096e61e	105 Minuten ohne Pause.
+v_de_f70cde6e4b43c934	110 Minuten ohne Pause.
+v_de_87a5a481b58e7cfb	115 Minuten ohne Pause.
+v_de_a347801254a941e7	120 Minuten ohne Pause.
+v_de_ee7d29a1640922f8	125 Minuten ohne Pause.
+v_de_1cb9e19b03e82bae	130 Minuten ohne Pause.
+v_de_5c5c6d3a7938d445	135 Minuten ohne Pause.
+v_de_cefc1d1d3be78389	140 Minuten ohne Pause.
+v_de_eadfad508bc4b24a	145 Minuten ohne Pause.
+v_de_18a9ddcb75b66960	15 Minuten ohne Pause.
+v_de_75d1e5682c58acc8	150 Minuten ohne Pause.
+v_de_31f4317498d663b7	155 Minuten ohne Pause.
+v_de_bdd67861584867db	160 Minuten ohne Pause.
+v_de_40c264d8b61e0894	165 Minuten ohne Pause.
+v_de_93ecc731270f0ad2	170 Minuten ohne Pause.
+v_de_7b5fb046a2134511	175 Minuten ohne Pause.
+v_de_3021414e96c48c1d	180 Minuten ohne Pause.
+v_de_d668cca65afa6a06	185 Minuten ohne Pause.
+v_de_2e5a99c166d35dbc	190 Minuten ohne Pause.
+v_de_7440ba6358576a63	195 Minuten ohne Pause.
+v_de_76806f2dc1baa5bc	20 Minuten ohne Pause.
+v_de_64ee5ef53b0cff1c	200 Minuten ohne Pause.
+v_de_7ea85b527322e743	205 Minuten ohne Pause.
+v_de_4d219964881d02fd	210 Minuten ohne Pause.
+v_de_e865875ca5a8a566	215 Minuten ohne Pause.
+v_de_61feb086bb2520b6	220 Minuten ohne Pause.
+v_de_173f2d8b6503d08d	225 Minuten ohne Pause.
+v_de_72f5b5d907d1c3ef	230 Minuten ohne Pause.
+v_de_e81387647f430bc0	235 Minuten ohne Pause.
+v_de_4ca6a284e37e4d10	240 Minuten ohne Pause.
+v_de_b35344f29b8ef53f	245 Minuten ohne Pause.
+v_de_bc668fcfb33eb263	25 Minuten ohne Pause.
+v_de_1840ad18cc7b1bd1	250 Minuten ohne Pause.
+v_de_70e90371d0aa8292	255 Minuten ohne Pause.
+v_de_90fda17369749d9a	260 Minuten ohne Pause.
+v_de_476b9e7a1d405499	265 Minuten ohne Pause.
+v_de_1ca09ddd000db723	270 Minuten ohne Pause.
+v_de_b9f7501aefbeb97c	275 Minuten ohne Pause.
+v_de_4b08294d7b38fb14	280 Minuten ohne Pause.
+v_de_c81c3cd61d635a5b	285 Minuten ohne Pause.
+v_de_df50369e4d26dc15	290 Minuten ohne Pause.
+v_de_52cab7fcede69c7e	295 Minuten ohne Pause.
+v_de_784716baf1abd41d	30 Minuten ohne Pause.
+v_de_031ba18976457e7f	300 Minuten ohne Pause.
+v_de_1e8ea212b5e1b206	35 Minuten ohne Pause.
+v_de_d1f2fab016e9173a	40 Minuten ohne Pause.
+v_de_dcf26e347e5013b9	45 Minuten ohne Pause.
+v_de_d6b74d2367701d49	5 Minuten ohne Pause.
+v_de_bc886c4a08ef3cc3	50 Minuten ohne Pause.
+v_de_a2ce6fecd0d9549c	55 Minuten ohne Pause.
+v_de_5d33af01d1e997b0	60 Minuten ohne Pause.
+v_de_006bc29695f0155f	65 Minuten ohne Pause.
+v_de_93c227f66cdbb9f1	70 Minuten ohne Pause.
+v_de_12a46cea762a4eb2	75 Minuten ohne Pause.
+v_de_64dfb7075ecf73ae	80 Minuten ohne Pause.
+v_de_a48242a6d4201c45	85 Minuten ohne Pause.
+v_de_eb6d557eaf9089e7	90 Minuten ohne Pause.
+v_de_36a2ff0dbef06af8	95 Minuten ohne Pause.
+v_de_92011fdf04443bb4	Abends lieber runterfahren.
+v_de_675bbceaab686f55	Armnerv-Gleiten links.
+v_de_09eeb69dc4406257	Armnerv-Gleiten rechts.
+v_de_275cd9f03b4fa640	Auf den Bauch legen und auf die Unterarme stützen.
+v_de_235ea815d5aa1452	Auf den Rücken, Unterschenkel auf einen Stuhl oder das Sofa.
+v_de_7a6cb4bbf947cb95	Auf den linken Unterarm, Knie oder Füße am Boden, Körper in einer Linie.
+v_de_1a0c8d7403fe1dc7	Auf die Fersen setzen, Arme lang, Stirn ablegen.
+v_de_55aea48f228e0ac8	Auf die Sitzhöcker.
+v_de_37fbe69c7ee29d6d	Aufrecht auf einen Stuhl.
+v_de_b0498bb74e1920c3	Aufrecht gespeichert.
+v_de_80ef45848c8af9a1	Aufstehen und gehen.
+v_de_913dd74ff9e5f386	Becken vor und zurück kippen, dann in der Mitte bleiben.
+v_de_8a3f97b626677a28	Beckenheben.
+v_de_fdc051aa43e6ce1e	Beide Füße auf den Boden.
+v_de_7dc56e1b2a3f4937	Beim Ausatmen den Rücken rund machen, beim Einatmen sinken lassen.
+v_de_6cb5adb506af4817	Beim Zurücklehnen ausatmen.
+v_de_b19ba1bd85e687ab	Bird Dog.
+v_de_8c4f914853deb685	Blick zur hinteren Wand.
+v_de_d549e7daeb9a4a96	Brust öffnen.
+v_de_1fa5ecff3b3dd360	Brustkorb nach links drehen und drei Atemzüge an der Lehne festhalten.
+v_de_16363a4486504f98	Curl-up.
+v_de_b5d9ab9262983376	Dann nach rechts.
+v_de_2f7daba10fd69ff6	Deine Haltung lässt seit ein paar Minuten nach.
+v_de_7cfd0c5c835e7d55	Den unteren Rücken schwer werden lassen.
+v_de_9ae93bf6bead2a38	Der Rücken bleibt ruhig.
+v_de_1afa1c7bc9902536	Drehung im Sitzen.
+v_de_d0872f8f63ab845d	Du bist zuhause, also gern auf dem Boden.
+v_de_715e09eb3cfa7a44	Du sackst immer wieder ein.
+v_de_a0fbc113ba41a2c3	Du sitzt schon lange.
+v_de_2dc49260e5d35244	Ein paar Schritte gehen, Wasser holen.
+v_de_8fb33a2a35ad2700	Eine Hand auf den Bauch.
+v_de_27fcea236cca48c9	Eine Linie vom Kopf bis zu den Knien.
+v_de_b5e282e9835c02dc	Einen Arm und das gegenüberliegende Bein lang strecken, acht Sekunden halten, wechseln.
+v_de_8c675d1c1564c581	Fließend, nie in den Schmerz.
+v_de_f8665c1da0ed9b85	Fünf Sekunden halten, lösen, wiederholen.
+v_de_cfc9a60d5f520578	Ganz in Ruhe, kein Muss.
+v_de_a0deb3e281d244df	Geht leise am Platz.
+v_de_be94d17b82498799	Gut gemacht.
+v_de_c79fabae45945a61	Gym in 1 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_c5302a56db6a0b3b	Gym in 10 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_c279134704236d48	Gym in 11 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_c1b0df2d46dde2c9	Gym in 12 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_a2972a3d9d9226e6	Gym in 13 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_bda61d594abf41cf	Gym in 14 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_93c9045e8fa0c05c	Gym in 15 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_d67f21aee19138fd	Gym in 16 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_df234e5d930b713a	Gym in 17 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_4037bdf0782264b3	Gym in 18 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_d517a05c12d93380	Gym in 19 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_6266959d7cd1bc20	Gym in 2 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_6f4fd64d84a0cba4	Gym in 20 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_c52817d18151db17	Gym in 21 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_c35a9b93d3bde3e2	Gym in 22 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_b3da7a3b8252d725	Gym in 23 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_6c342810db67fd30	Gym in 24 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_f1c13ec5c74fe523	Gym in 25 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_0607d327d88b4dae	Gym in 26 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_cd804be6007cbab1	Gym in 27 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_b0862eededf32dcc	Gym in 28 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_242c7d640b2dd17f	Gym in 29 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_2d823a9706b3ed53	Gym in 3 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_5b4200b878b6cd21	Gym in 30 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_025eb3a5e02425de	Gym in 31 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_46f27622a0f3ac13	Gym in 32 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_e700f9481ecb6de0	Gym in 33 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_894c63d56b3fcf15	Gym in 34 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_a1715fdafb914d12	Gym in 35 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_7fd0915c8d218f47	Gym in 36 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_d4ad7e8a0c511854	Gym in 37 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_dca61cbb3f5bc7a9	Gym in 38 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_5cec01cddbb2b8c6	Gym in 39 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_f79e675589594f52	Gym in 4 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_727a81c169d9bab2	Gym in 40 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_091db804c128b4b5	Gym in 41 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_02862fa7c3720774	Gym in 42 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_ac417d3c99bfd167	Gym in 43 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_b245b90e22fed4fe	Gym in 44 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_831b06ecabed32c1	Gym in 45 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_573c50e5f60b4e00	Gym in 46 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_c25c6e7a5b547f33	Gym in 47 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_43fcf3804ae711ba	Gym in 48 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_3ba571ea20d2057d	Gym in 49 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_6f71da73e6ad2a55	Gym in 5 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_2a4e680cc092a797	Gym in 50 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_d4297b703c7c6c24	Gym in 51 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_fbb5bf0f963d29a5	Gym in 52 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_283440b68b998462	Gym in 53 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_399c8399db3a37a3	Gym in 54 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_d10dcd3393439db0	Gym in 55 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_155b90ba14670d31	Gym in 56 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_6b2e236317cc1a2e	Gym in 57 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_8952cd9f4a6e9dff	Gym in 58 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_155fd410a5cece4c	Gym in 59 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_5cc04378cfd7cd94	Gym in 6 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_4bda9e6ad6a70e60	Gym in 60 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_c91726ac8425c693	Gym in 61 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_4a39f879f40e785e	Gym in 62 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_a31d458c8ca11fa1	Gym in 63 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_398723acc42cb8d4	Gym in 64 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_e4f6e197cc625bc7	Gym in 65 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_e94ca4af0f7b9f92	Gym in 66 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_d127a8a97f2a2195	Gym in 67 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_2300f4b95816b728	Gym in 68 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_29e91337dd9bc71b	Gym in 69 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_2ff54bfddcca5387	Gym in 7 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_fffab7153ed9249d	Gym in 70 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_845f24c36e6e04da	Gym in 71 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_da7bd52944125cef	Gym in 72 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_73436465000c96fc	Gym in 73 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_ffc81e9c7694dee9	Gym in 74 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_8510ee3ef798d206	Gym in 75 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_3feec163ab1973db	Gym in 76 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_5d7f5b4eef8e2be8	Gym in 77 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_53eb4eeddc870755	Gym in 78 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_dc17dbcf7f332c52	Gym in 79 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_a09779c501bef506	Gym in 8 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_d007c885cfa7baae	Gym in 80 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_97804143f79927b1	Gym in 81 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_36341d6ed2846a30	Gym in 82 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_bbc13423be6c5223	Gym in 83 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_8d5a90f1cada50e2	Gym in 84 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_7dda6f99796f4425	Gym in 85 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_394fcbab7bbd38a4	Gym in 86 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_8f280d2f786e4817	Gym in 87 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_866782b5a6c7d516	Gym in 88 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_54ab8f73d29a5b79	Gym in 89 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_1b4eaa2280bb01e9	Gym in 9 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_10f26b8098101913	Gym in 90 Minuten: nur locker machen, die Kraft sparst du dir fürs Training.
+v_de_ff9dd1da0dc46819	Hallo, ich bin Theo.
+v_de_cb0612b5d4ff8743	Halten, lösen, wiederholen.
+v_de_d504aa98b0d12691	Handgelenk nach hinten beugen und den Kopf zum Arm neigen, lösen und den Kopf wegneigen.
+v_de_0e29ebb8a67b1531	Hinlegen, Beine hoch.
+v_de_0e2c52b6597daf0c	Hände an die Hüften, fünfmal sanft nach hinten lehnen.
+v_de_65341506aab190af	Hände hinter den Kopf, über die Lehne nach hinten strecken, Ellbogen weit.
+v_de_77704703c0f9ac6e	Hüftbeuger links.
+v_de_b4762b2cc2d434b6	Hüftbeuger rechts.
+v_de_a90748ae292824e8	Hüfte bleibt unten.
+v_de_876bfbd41599d14b	Hüfte heben, anspannen, langsam senken.
+v_de_aec33a85780e0434	Ich bin da.
+v_de_9c13aa03a9ffbc74	Ich pausiere.
+v_de_34e9fd1ec0c3e816	In den unteren Rücken atmen.
+v_de_9295184607c7349e	In die Ferne schauen.
+v_de_9a590525e8ce8086	Ischias-Gleiten links.
+v_de_d563ea985124348e	Ischias-Gleiten rechts.
+v_de_b2d5b8df07a5deb7	Jetzt auf den rechten Unterarm.
+v_de_8e30ebf4834ad698	Jetzt das rechte Bein nach hinten.
+v_de_2e0a23239ba54f9f	Jetzt das rechte Knie.
+v_de_71129e2cc668ea44	Jetzt den rechten Arm unter dem linken durch.
+v_de_994c6317f470d1db	Jetzt der rechte Arm.
+v_de_811deaeb80b38850	Katze und Kuh.
+v_de_8578a0188a499afd	Kiefer lösen, Schultern fallen lassen, Hände weich.
+v_de_338227b4615782c1	Kindhaltung.
+v_de_75ddda1bd9536154	Kinn zurück.
+v_de_42acddd8649bc91c	Kopf und Schultern leicht anheben, acht Sekunden halten, ablegen.
+v_de_da804667f557576d	Kurz aufrichten und durchatmen.
+v_de_3c5b11a96ef828f6	Kurz raus aus dem Lesesaal.
+v_de_a42f7525fd0bc49a	Lang ausatmen.
+v_de_542e563e0867829e	Langsam und klein, aufhören, wenn es stärker kribbelt.
+v_de_7785dd24bb99de81	Langsam.
+v_de_d7ec3c0f18ceb2dd	Lernmodus läuft.
+v_de_4d1eec3b384474bb	Linken Arm unter dem rechten durchschieben, Schulter zum Boden, in den oberen Rücken atmen.
+v_de_a221a3426574e036	Linken Arm zur Seite, Handfläche nach oben.
+v_de_0bb20023d33fb132	Linkes Bein nach hinten, Steißbein einrollen und die Hüfte nach vorn schieben.
+v_de_a78513d7bb70da03	Linkes Knie strecken und dabei nach oben schauen, beugen und nach unten schauen.
+v_de_0c6345971d9d8a41	Locker, kein Druck im unteren Rücken.
+v_de_90d1203a422cb5b0	Loslassen.
+v_de_fdb631edc51f6aed	Nach dem Training: runterfahren statt nachlegen.
+v_de_a043190e4a320022	Nach der Hälfte die Seite wechseln.
+v_de_ddc3cc2313cdadab	Nacken seitlich.
+v_de_f10dcd86ab38dd58	Nadelöhr links.
+v_de_6e8cae5981a8dbdc	Nadelöhr rechts.
+v_de_c806c1a2ebd38744	Normal weiteratmen und kurz liegen bleiben, bevor du aufstehst.
+v_de_ce78bc7cc482da0a	Rechtes Ohr zur Schulter sinken lassen und atmen.
+v_de_bb582f9a5e6eac98	Ruhig atmen.
+v_de_8b06c4142517577e	Rückbeuge im Stehen.
+v_de_8fa97c30fa3c9b01	Rückenlage, Füße aufgestellt.
+v_de_306cabce5adfe129	Rückenlage, ein Knie angewinkelt, Hände unter den unteren Rücken.
+v_de_e567319ed1c9fabe	Schau auf das Entfernteste im Raum und blinzle ein paar Mal langsam.
+v_de_1f82fa0c84d9fe43	Schieb den Kopf gerade nach hinten, wie für ein Doppelkinn.
+v_de_19bd39ab2133e131	Schulter ablegen, atmen.
+v_de_22608346fe98a0d8	Schulterblätter runter.
+v_de_07d81581d0312bcf	Schulterblätter sanft nach hinten unten ziehen.
+v_de_1cae370b602853ec	Schultern locker, Rücken lang.
+v_de_b8cbd9221a61a08f	Schultern nach hinten unten rollen, Schulterblätter zusammenziehen.
+v_de_b4ecf56227d9571e	Seitstütz links.
+v_de_2fe44bb06f7f75c6	Seitstütz rechts.
+v_de_df163ffc1b696931	Session beendet.
+v_de_27292382b958820d	Sperr ruhig dein Handy.
+v_de_eb3edf0c14c1a6ea	Sphinx.
+v_de_d5edf50cf3c25408	Steißbein einrollen, Hüfte nach vorn.
+v_de_6091f7b4113419d3	Strecken und nach oben schauen, beugen und nach unten schauen.
+v_de_6dcd6774c3204672	Stromsparmodus aktiv.
+v_de_4cbe24f25164b43e	Such den am weitesten entfernten Punkt und lass die Augen dort ruhen.
+v_de_b6abc7d48959083f	Unauffällig, im Sitzen.
+v_de_b19b3f03c00ec03c	Vier Sekunden durch die Nase ein, acht Sekunden aus.
+v_de_4264e32ce600654c	Vierfüßlerstand.
+v_de_77488853841f6413	Weg vom Stuhl.
+v_de_7fb409b4301c2d6e	Wegen der Schmerzen heute nur Sanftes.
+v_de_86dcc2927063d208	Weiter geht's.
+v_de_cefa3059f1267223	Wieder 10 Minuten um.
+v_de_8a21b63504aa4d19	Wieder 100 Minuten um.
+v_de_5608adbdf488d41a	Wieder 105 Minuten um.
+v_de_1077b8833ca4176c	Wieder 110 Minuten um.
+v_de_c2c4390395a8ad23	Wieder 115 Minuten um.
+v_de_13bf7b3ed182ad93	Wieder 120 Minuten um.
+v_de_4057a394c2cb5b5c	Wieder 125 Minuten um.
+v_de_7cca876033c129ce	Wieder 130 Minuten um.
+v_de_f785a572ad64b885	Wieder 135 Minuten um.
+v_de_51e386ec59f9e7a5	Wieder 140 Minuten um.
+v_de_71d875d4379c4b6e	Wieder 145 Minuten um.
+v_de_1cadafd99821dc6c	Wieder 15 Minuten um.
+v_de_b68a976c279de6e8	Wieder 150 Minuten um.
+v_de_4fd613359f827487	Wieder 155 Minuten um.
+v_de_ea63982c67452e9f	Wieder 160 Minuten um.
+v_de_5cd9125fc73f73a0	Wieder 165 Minuten um.
+v_de_5b107f0da11fd5ea	Wieder 170 Minuten um.
+v_de_60ca1fb524a29669	Wieder 175 Minuten um.
+v_de_a3cd7268b80c0fd1	Wieder 180 Minuten um.
+v_de_42269e27e518e412	Wieder 185 Minuten um.
+v_de_5ddd03a683ef1c84	Wieder 190 Minuten um.
+v_de_c183e9d0cf56b87b	Wieder 195 Minuten um.
+v_de_47081c8a0a006a7c	Wieder 20 Minuten um.
+v_de_f1e97251325e1738	Wieder 200 Minuten um.
+v_de_381c9ef9aba214d7	Wieder 205 Minuten um.
+v_de_4adcc083110c5875	Wieder 210 Minuten um.
+v_de_5ffedf32e4adfb3e	Wieder 215 Minuten um.
+v_de_d9020c0167f1427a	Wieder 220 Minuten um.
+v_de_20ee65ba8c0d7879	Wieder 225 Minuten um.
+v_de_7661aa82ee1dccef	Wieder 230 Minuten um.
+v_de_5f87326f0923d230	Wieder 235 Minuten um.
+v_de_652ddae509db8abc	Wieder 240 Minuten um.
+v_de_42c1dd462fee86f3	Wieder 245 Minuten um.
+v_de_a7f195eeccaf05b3	Wieder 25 Minuten um.
+v_de_264ebd2397e21ba9	Wieder 250 Minuten um.
+v_de_aaac8fbabd6d472a	Wieder 255 Minuten um.
+v_de_aa0a7a6d5db1999e	Wieder 260 Minuten um.
+v_de_fc1f9dd6131c1d55	Wieder 265 Minuten um.
+v_de_d5e716bddb146363	Wieder 270 Minuten um.
+v_de_65026cdf278e82ac	Wieder 275 Minuten um.
+v_de_2508239d4f22d090	Wieder 280 Minuten um.
+v_de_dc08f599252b1e4f	Wieder 285 Minuten um.
+v_de_71d22da42317c56d	Wieder 290 Minuten um.
+v_de_697531874dad67b6	Wieder 295 Minuten um.
+v_de_6d00170b80205b69	Wieder 30 Minuten um.
+v_de_378fa6f770de2ffb	Wieder 300 Minuten um.
+v_de_67467663fc9d9aea	Wieder 35 Minuten um.
+v_de_7859f4ef7892a63a	Wieder 40 Minuten um.
+v_de_5ab3f73fd2a38f39	Wieder 45 Minuten um.
+v_de_a74a1e3ddb4619f5	Wieder 5 Minuten um.
+v_de_89d117ff98fd5daf	Wieder 50 Minuten um.
+v_de_59f0f67eb3c339f0	Wieder 55 Minuten um.
+v_de_24e08978e31893f8	Wieder 60 Minuten um.
+v_de_dfd7fa12984e5497	Wieder 65 Minuten um.
+v_de_9c52366b76491435	Wieder 70 Minuten um.
+v_de_0274639d073871fe	Wieder 75 Minuten um.
+v_de_59d962c523c62856	Wieder 80 Minuten um.
+v_de_bd15db5ea90f168d	Wieder 85 Minuten um.
+v_de_cdb9e1272ad47d7b	Wieder 90 Minuten um.
+v_de_6a12fafcdf6ce184	Wieder 95 Minuten um.
+v_de_2351b5f210bf90fc	Zeit für Aufstehen und Bewegen, 2 Minuten.
+v_de_9697b89227ddc6f9	Zeit für Augen und Haltung, 30 Sekunden.
+v_de_3c7bc7ff0b20e6c8	Zeit für Rücken-Stabilität, 3 Minuten.
+v_de_ebea1fe380bf55a7	Zeit für den oberen Rücken, 2 Minuten.
+v_de_b6a88ca18ee76581	Zeit für einen Wirbelsäulen-Flow auf dem Boden, 3 Minuten.
+v_de_98a34f12e307b7c6	Zeit für einen leisen Reset im Sitzen, 45 Sekunden.
+v_de_695de675539d6d56	Zeit für ruhiges Atmen im Liegen, 3 Minuten.
+v_de_06abf9089c0b4c1b	Zeit für sanftes Nervengleiten, 2 Minuten.
+v_de_d48bea20674f6297	Über die Lehne strecken.
+v_en_877c2394ef10bad8	10 minutes without a break.
+v_en_5b1679b3d0eb1692	100 minutes without a break.
+v_en_54f5b79686da64df	105 minutes without a break.
+v_en_93ccb855fdc7c111	110 minutes without a break.
+v_en_6af8c7185f936a7c	115 minutes without a break.
+v_en_0e2738e631c339d0	120 minutes without a break.
+v_en_46d7cd4e2255203d	125 minutes without a break.
+v_en_3e7d4178a4ee2baf	130 minutes without a break.
+v_en_ed714828611167e2	135 minutes without a break.
+v_en_311e62e95531e45e	140 minutes without a break.
+v_en_e1c2435dd7a19e53	145 minutes without a break.
+v_en_5a17436c39107f25	15 minutes without a break.
+v_en_d5312e1548d829cd	150 minutes without a break.
+v_en_504e0a9615430c60	155 minutes without a break.
+v_en_29c61abdf85a355c	160 minutes without a break.
+v_en_fb9ec19192f28271	165 minutes without a break.
+v_en_8e8968f275ad47eb	170 minutes without a break.
+v_en_0a26bcbb1652fc96	175 minutes without a break.
+v_en_6113662efa4c173a	180 minutes without a break.
+v_en_e7c4bef9ec35b927	185 minutes without a break.
+v_en_54a8b12d9db230d9	190 minutes without a break.
+v_en_193fa4812e24f5c4	195 minutes without a break.
+v_en_0d1ae830ca99ccb9	20 minutes without a break.
+v_en_d91c9fcaa8e5b8a9	200 minutes without a break.
+v_en_3b47f5aeb7e48e14	205 minutes without a break.
+v_en_2bb4d8ecc5bc328a	210 minutes without a break.
+v_en_c915b67d74291737	215 minutes without a break.
+v_en_b1913a94e032af87	220 minutes without a break.
+v_en_886476d71026f61a	225 minutes without a break.
+v_en_1084662119f036c8	230 minutes without a break.
+v_en_bd813a5f5d943795	235 minutes without a break.
+v_en_46f53759751223a5	240 minutes without a break.
+v_en_745a17822b125f58	245 minutes without a break.
+v_en_fa2d4e80ae376524	25 minutes without a break.
+v_en_75c3fdd99f0a6c76	250 minutes without a break.
+v_en_c412c3d9188e57cb	255 minutes without a break.
+v_en_8f5500b43c0b5e83	260 minutes without a break.
+v_en_dcbd227618e3a68e	265 minutes without a break.
+v_en_ac5baa9a35388174	270 minutes without a break.
+v_en_c9acbcc5d5a63c09	275 minutes without a break.
+v_en_c4a293188dc95021	280 minutes without a break.
+v_en_d55c46590b0f2b0c	285 minutes without a break.
+v_en_ef4880e9d9aab0e2	290 minutes without a break.
+v_en_40547a3a1d8774af	295 minutes without a break.
+v_en_9b8682e9d425519a	30 minutes without a break.
+v_en_73358c3b420bb518	300 minutes without a break.
+v_en_c4b346a7a4310b07	35 minutes without a break.
+v_en_8abfdd7ae98eb653	40 minutes without a break.
+v_en_da1bfd06671efc5e	45 minutes without a break.
+v_en_90b718493095fe1e	5 minutes without a break.
+v_en_e874815c91984d84	50 minutes without a break.
+v_en_1daf2eda13b3a499	55 minutes without a break.
+v_en_b06a003ec184a375	60 minutes without a break.
+v_en_821e3b7560c3d928	65 minutes without a break.
+v_en_3781400babda07c6	70 minutes without a break.
+v_en_c4fabdb6139242db	75 minutes without a break.
+v_en_3ec1545064ee9b0f	80 minutes without a break.
+v_en_2b8fdba15939f7c2	85 minutes without a break.
+v_en_aa5501ebf28e9930	90 minutes without a break.
+v_en_184c5f8a5723dd1d	95 minutes without a break.
+v_en_ffb68230d991ef0b	After training: wind down instead of adding more.
+v_en_b3ebf9853663b9c0	Another 10 minutes gone.
+v_en_ab685ba5823f63ac	Another 100 minutes gone.
+v_en_0ed20284c2edd5cb	Another 105 minutes gone.
+v_en_9c9792f94e2b6efd	Another 110 minutes gone.
+v_en_f7462735f7c8d226	Another 115 minutes gone.
+v_en_49026fc768835982	Another 120 minutes gone.
+v_en_0c4b352d492e2941	Another 125 minutes gone.
+v_en_513e0cb6c301437b	Another 130 minutes gone.
+v_en_1215f82e98e4fa1c	Another 135 minutes gone.
+v_en_7e02834c66dc2270	Another 140 minutes gone.
+v_en_0c887f5f979197d7	Another 145 minutes gone.
+v_en_2d8066b99f296c67	Another 15 minutes gone.
+v_en_7a1889971bcb4821	Another 150 minutes gone.
+v_en_430dd7de1b350762	Another 155 minutes gone.
+v_en_d421074648d12976	Another 160 minutes gone.
+v_en_8bb02afaaa46e28d	Another 165 minutes gone.
+v_en_f97ec38ebc46ac0f	Another 170 minutes gone.
+v_en_ae694e5b62b78a28	Another 175 minutes gone.
+v_en_3f3b5b2dea6c88e4	Another 180 minutes gone.
+v_en_b9c61f273248b083	Another 185 minutes gone.
+v_en_d4640bfecb7c4d35	Another 190 minutes gone.
+v_en_745d56704632003e	Another 195 minutes gone.
+v_en_fa18b1ca25143d9f	Another 20 minutes gone.
+v_en_05caf77829f32969	Another 200 minutes gone.
+v_en_35a17fe6ed9866aa	Another 205 minutes gone.
+v_en_819e60c52333a438	Another 210 minutes gone.
+v_en_670d1b63e0f2dc9f	Another 215 minutes gone.
+v_en_4cc72c6269d9c217	Another 220 minutes gone.
+v_en_42ffbf739c540eb0	Another 225 minutes gone.
+v_en_392335a5eb9ae57e	Another 230 minutes gone.
+v_en_05ebd35bcc094e75	Another 235 minutes gone.
+v_en_4c885594a790a5e5	Another 240 minutes gone.
+v_en_285dcc6952760c2e	Another 245 minutes gone.
+v_en_14a9f72b67550538	Another 25 minutes gone.
+v_en_20eacb7d1d4f5214	Another 250 minutes gone.
+v_en_8280bc25e8bb83f3	Another 255 minutes gone.
+v_en_4745a3dc723d0363	Another 260 minutes gone.
+v_en_42681bc2323c07c4	Another 265 minutes gone.
+v_en_c2eb502d19d9674a	Another 270 minutes gone.
+v_en_4c2b276385185009	Another 275 minutes gone.
+v_en_4a2c3046aa9c7951	Another 280 minutes gone.
+v_en_1bf296af097bf2d2	Another 285 minutes gone.
+v_en_8d6b9b3d53f6f6a0	Another 290 minutes gone.
+v_en_aaa4998d95008747	Another 295 minutes gone.
+v_en_3957be05482a2686	Another 30 minutes gone.
+v_en_52d196cae359b86e	Another 300 minutes gone.
+v_en_f270979cdfddc75d	Another 35 minutes gone.
+v_en_745528e73d376d8d	Another 40 minutes gone.
+v_en_bcc60532dbc1b476	Another 45 minutes gone.
+v_en_e7fde1d3087c9e90	Another 5 minutes gone.
+v_en_d5b7e4a92ff522fc	Another 50 minutes gone.
+v_en_ed130fe204c8a85b	Another 55 minutes gone.
+v_en_f777007155de60cb	Another 60 minutes gone.
+v_en_940d5992152feeac	Another 65 minutes gone.
+v_en_88446207a2ebae12	Another 70 minutes gone.
+v_en_1e504587a9761391	Another 75 minutes gone.
+v_en_df36bdc9c939b109	Another 80 minutes gone.
+v_en_55f6e6935dfac84a	Another 85 minutes gone.
+v_en_a261fe67cde4a758	Another 90 minutes gone.
+v_en_29199b826239afbf	Another 95 minutes gone.
+v_en_a70ed2c150273eb2	Arm nerve glide, left.
+v_en_993f947421cdea29	Arm nerve glide, right.
+v_en_adc9ed4a0e4c8260	Back on.
+v_en_6d997c3371b6d99d	Because of the pain, only gentle work today.
+v_en_c45942d4b150c978	Bend the wrist back as you tilt your head toward the arm, release as you tilt away.
+v_en_da708b97a6aff293	Bird dog.
+v_en_251dfc8d5e6fdb4c	Both feet flat.
+v_en_6bed009568252b6e	Breathe into the lower back.
+v_en_fbc31c318c8696fb	Breathe normally and stay a moment before you get up.
+v_en_c82a4b5686ffcbfb	Breathe out as you go back.
+v_en_023513c072cba396	Cat and cow.
+v_en_5f2db6d486cca898	Change sides halfway.
+v_en_09fd09adc2535e67	Child's pose.
+v_en_007e326b8d752a63	Chin tuck.
+v_en_8a27e0b7d20876d0	Curl-up.
+v_en_90bed078137ebeaf	Draw the shoulder blades gently back and down.
+v_en_67405cbc881ccd5d	Easy, no pinching in the lower back.
+v_en_258df2b490bb5bc1	Eyes to the far wall.
+v_en_22d35ed6195a8732	Find the most distant point you can see and rest your eyes on it.
+v_en_0373f9fab180ca6b	Find your sit bones.
+v_en_d0f96c7d74dffcf2	Glute bridge.
+v_en_2ecea9f7fb33dc04	Go ahead and lock your phone.
+v_en_ed48618a27f9cedf	Gym in 1 minutes: keep it light and save your strength for training.
+v_en_9405c8df38c76ad5	Gym in 10 minutes: keep it light and save your strength for training.
+v_en_b9d64cb8fd2f7e96	Gym in 11 minutes: keep it light and save your strength for training.
+v_en_7d5ca6cb4763e5b7	Gym in 12 minutes: keep it light and save your strength for training.
+v_en_882e9163fdf3a8c0	Gym in 13 minutes: keep it light and save your strength for training.
+v_en_8f347011e11c3c01	Gym in 14 minutes: keep it light and save your strength for training.
+v_en_f34f7c23c75dc4d2	Gym in 15 minutes: keep it light and save your strength for training.
+v_en_53657f943e1cf603	Gym in 16 minutes: keep it light and save your strength for training.
+v_en_24aed6dd13addb4c	Gym in 17 minutes: keep it light and save your strength for training.
+v_en_e1c4ac6cc596885d	Gym in 18 minutes: keep it light and save your strength for training.
+v_en_96f458c7d6682e3e	Gym in 19 minutes: keep it light and save your strength for training.
+v_en_361c39a7d631687e	Gym in 2 minutes: keep it light and save your strength for training.
+v_en_4d548a84ab4e46da	Gym in 20 minutes: keep it light and save your strength for training.
+v_en_cbd2b123075fc2c9	Gym in 21 minutes: keep it light and save your strength for training.
+v_en_ee9a817c83a04214	Gym in 22 minutes: keep it light and save your strength for training.
+v_en_4b9428fc01015a2b	Gym in 23 minutes: keep it light and save your strength for training.
+v_en_1611749319b5e57e	Gym in 24 minutes: keep it light and save your strength for training.
+v_en_178ba14e33794e9d	Gym in 25 minutes: keep it light and save your strength for training.
+v_en_4f74c256d9542068	Gym in 26 minutes: keep it light and save your strength for training.
+v_en_cd3d9c756b7e4bdf	Gym in 27 minutes: keep it light and save your strength for training.
+v_en_96eb635417223112	Gym in 28 minutes: keep it light and save your strength for training.
+v_en_5490fd28428d5641	Gym in 29 minutes: keep it light and save your strength for training.
+v_en_37966662eff4d19d	Gym in 3 minutes: keep it light and save your strength for training.
+v_en_486a4e5e549bdb2f	Gym in 30 minutes: keep it light and save your strength for training.
+v_en_a0a44fe0ffa17338	Gym in 31 minutes: keep it light and save your strength for training.
+v_en_b7230307e7b754ad	Gym in 32 minutes: keep it light and save your strength for training.
+v_en_cdce70a08eda3bce	Gym in 33 minutes: keep it light and save your strength for training.
+v_en_ab717b48d2f49abb	Gym in 34 minutes: keep it light and save your strength for training.
+v_en_bb3bad7bf39ea964	Gym in 35 minutes: keep it light and save your strength for training.
+v_en_2990b9ce6daa1ad9	Gym in 36 minutes: keep it light and save your strength for training.
+v_en_1bd948432aff386a	Gym in 37 minutes: keep it light and save your strength for training.
+v_en_4faafb4b0e06c1c7	Gym in 38 minutes: keep it light and save your strength for training.
+v_en_6d7b9e3994f2d6d0	Gym in 39 minutes: keep it light and save your strength for training.
+v_en_0ea54691401bc514	Gym in 4 minutes: keep it light and save your strength for training.
+v_en_524966b2f616e484	Gym in 40 minutes: keep it light and save your strength for training.
+v_en_4ba8338829bba9db	Gym in 41 minutes: keep it light and save your strength for training.
+v_en_9a0f604977cb090a	Gym in 42 minutes: keep it light and save your strength for training.
+v_en_853d2201795cb4f9	Gym in 43 minutes: keep it light and save your strength for training.
+v_en_fe76e38045434c58	Gym in 44 minutes: keep it light and save your strength for training.
+v_en_5f3fc0b077939d4f	Gym in 45 minutes: keep it light and save your strength for training.
+v_en_5930216c309b37ee	Gym in 46 minutes: keep it light and save your strength for training.
+v_en_cd3f36c73cefeacd	Gym in 47 minutes: keep it light and save your strength for training.
+v_en_05fd37c2d570823c	Gym in 48 minutes: keep it light and save your strength for training.
+v_en_d0d9175905f2f3b3	Gym in 49 minutes: keep it light and save your strength for training.
+v_en_6b9eee10bd7cdd2b	Gym in 5 minutes: keep it light and save your strength for training.
+v_en_ccc5caa967c02949	Gym in 50 minutes: keep it light and save your strength for training.
+v_en_4e47a40b0baead5a	Gym in 51 minutes: keep it light and save your strength for training.
+v_en_4c8742826161c0ab	Gym in 52 minutes: keep it light and save your strength for training.
+v_en_ef8d9b02e400a894	Gym in 53 minutes: keep it light and save your strength for training.
+v_en_187ebad493d9b51d	Gym in 54 minutes: keep it light and save your strength for training.
+v_en_17048e197a164bfe	Gym in 55 minutes: keep it light and save your strength for training.
+v_en_ce30b5fbcbdeb25f	Gym in 56 minutes: keep it light and save your strength for training.
+v_en_5067dbdd39b486e8	Gym in 57 minutes: keep it light and save your strength for training.
+v_en_558416aea2edbcc1	Gym in 58 minutes: keep it light and save your strength for training.
+v_en_97de7cda77829792	Gym in 59 minutes: keep it light and save your strength for training.
+v_en_6d5f4f9967c9c9da	Gym in 6 minutes: keep it light and save your strength for training.
+v_en_cec18a26ef3aa24e	Gym in 60 minutes: keep it light and save your strength for training.
+v_en_b8161c8e4817bb2d	Gym in 61 minutes: keep it light and save your strength for training.
+v_en_a19769676001d9b8	Gym in 62 minutes: keep it light and save your strength for training.
+v_en_495d67e4b4fc41af	Gym in 63 minutes: keep it light and save your strength for training.
+v_en_1ccc61c98b5f9eea	Gym in 64 minutes: keep it light and save your strength for training.
+v_en_2a83d354ce0a8159	Gym in 65 minutes: keep it light and save your strength for training.
+v_en_bc2ec70253ff0fe4	Gym in 66 minutes: keep it light and save your strength for training.
+v_en_ac6494cf3355013b	Gym in 67 minutes: keep it light and save your strength for training.
+v_en_3f0a42c44277e426	Gym in 68 minutes: keep it light and save your strength for training.
+v_en_16524024bb27f5e5	Gym in 69 minutes: keep it light and save your strength for training.
+v_en_ebdd7637c3db45c9	Gym in 7 minutes: keep it light and save your strength for training.
+v_en_9327619e70e6eea3	Gym in 70 minutes: keep it light and save your strength for training.
+v_en_8c345c4080dc336c	Gym in 71 minutes: keep it light and save your strength for training.
+v_en_59fa3d32920499a1	Gym in 72 minutes: keep it light and save your strength for training.
+v_en_3f5330205405e1f2	Gym in 73 minutes: keep it light and save your strength for training.
+v_en_2de88a3eaa4abd57	Gym in 74 minutes: keep it light and save your strength for training.
+v_en_f3a28db072a7dfe0	Gym in 75 minutes: keep it light and save your strength for training.
+v_en_359f23e4dd49a7f5	Gym in 76 minutes: keep it light and save your strength for training.
+v_en_764a6e1fc6278db6	Gym in 77 minutes: keep it light and save your strength for training.
+v_en_8e050403f58fbd0b	Gym in 78 minutes: keep it light and save your strength for training.
+v_en_8ecbd5938796fef4	Gym in 79 minutes: keep it light and save your strength for training.
+v_en_c1863713fc17ee00	Gym in 8 minutes: keep it light and save your strength for training.
+v_en_9fb1365a9f410cb8	Gym in 80 minutes: keep it light and save your strength for training.
+v_en_477734d7f43b74af	Gym in 81 minutes: keep it light and save your strength for training.
+v_en_ccdb571a2e79d54e	Gym in 82 minutes: keep it light and save your strength for training.
+v_en_b62fe9818756ee2d	Gym in 83 minutes: keep it light and save your strength for training.
+v_en_ba4893f5933e42e4	Gym in 84 minutes: keep it light and save your strength for training.
+v_en_aa7e61c27294343b	Gym in 85 minutes: keep it light and save your strength for training.
+v_en_1ae62ebcca9ed1ea	Gym in 86 minutes: keep it light and save your strength for training.
+v_en_289da0480d49b459	Gym in 87 minutes: keep it light and save your strength for training.
+v_en_6c8884b334927050	Gym in 88 minutes: keep it light and save your strength for training.
+v_en_4eb7e1c4ada65b47	Gym in 89 minutes: keep it light and save your strength for training.
+v_en_43f1025165a098f7	Gym in 9 minutes: keep it light and save your strength for training.
+v_en_ea07640ac2e5097d	Gym in 90 minutes: keep it light and save your strength for training.
+v_en_b9248793741c46b3	Hands behind your head, lean back over the backrest, elbows wide.
+v_en_97bf8d02058a4396	Hands on your hips, lean back gently five times.
+v_en_73f9ac74cca150f6	Hi, I'm Theo.
+v_en_38b2a7be67caf03c	Hip flexor, left.
+v_en_f9b1967ec4106f0b	Hip flexor, right.
+v_en_c6db8d8f9f8e5d4f	Hips stay down.
+v_en_e1f6721ceb417204	Hold five seconds, let go, repeat.
+v_en_0d2ee653248a921b	Hold, release, repeat.
+v_en_5d5958102fccfc8a	I'll pause.
+v_en_d2213db352cb3a0d	I'm here.
+v_en_7705a65c0af765e1	In through the nose for four, out for eight.
+v_en_0c66ee8ea81b0720	Invisible, in your seat.
+v_en_379710187523685d	It's evening: time to wind down.
+v_en_8f829b26b447cae7	Lean back over the chair.
+v_en_cee6e1d144a767d7	Leave the chair.
+v_en_74421e5cddbe370d	Left arm out to the side, palm up.
+v_en_79d3e3e3989dcc3b	Let go.
+v_en_696e0fa856de8747	Let the lower back get heavy.
+v_en_ba2fa3c841334fe5	Let the right ear sink toward the shoulder and breathe.
+v_en_cf77ab823e0d04d0	Lie down, legs up.
+v_en_8262296da7c01947	Lie on your front and prop yourself on the forearms.
+v_en_d70da0386ac5511a	Lift head and shoulders a little, hold eight seconds, lower.
+v_en_82c6aec0c6df36ef	Lift the hips, squeeze, lower slowly.
+v_en_cf25d04ff81cefd5	Long exhale.
+v_en_aba598ff392dd5f5	Look at the farthest thing in the room and blink slowly a few times.
+v_en_642803b7d6a0b034	Look far away.
+v_en_2442f95ac6bb3689	Low Power Mode is on.
+v_en_f49e171ebb417fb8	Neck, side to side.
+v_en_d404c8e3dd46f346	Nicely done.
+v_en_72830cea071e8aaf	No rush, only if you feel like it.
+v_en_feaf60c777678a21	Now the right arm under the left one.
+v_en_f7a140acf9dd4135	Now the right arm.
+v_en_56e20661badc332f	Now the right forearm.
+v_en_0ac06b94e312f3e8	Now the right knee.
+v_en_c49c67dbe0b0aee0	Now the right leg back.
+v_en_c6d767245357dee6	On hands and knees.
+v_en_8ea11fa4d5ea174b	On the left forearm, knees or feet on the floor, body in one line.
+v_en_534cb3fc768d7892	On your back, feet flat.
+v_en_68f156dc200bdbbb	On your back, lower legs on a chair or the sofa.
+v_en_f938e6874715e61e	On your back, one knee bent, hands under the lower back.
+v_en_bdb2daf568fe89ff	One hand on the belly.
+v_en_6430d584c7b14ba7	One line from head to knees.
+v_en_b2a8f75e6ae14646	Open the chest.
+v_en_6de48a9d8bb1f64e	Quiet breathing.
+v_en_565b637e3c85ca89	Quiet enough for your seat.
+v_en_6aaa218288e79a43	Reach one arm and the opposite leg long, hold eight seconds, switch.
+v_en_4551a51764e702ac	Rock your pelvis forward and back, then stop in the middle.
+v_en_354d77a665305de1	Roll your shoulders back and down, squeeze the shoulder blades together.
+v_en_0317aefa411a0438	Round the back as you breathe out, let it sink as you breathe in.
+v_en_b7d80cd3163ebb1c	Sciatic glide, left.
+v_en_714d80f965abfe6b	Sciatic glide, right.
+v_en_4145cb8087ce6721	Seated twist.
+v_en_a0969a6cdf9d5150	Session ended.
+v_en_c92b5ba78a92b5f7	Shoulder blades down.
+v_en_e4f7655f897c2fdb	Shoulder down, breathe.
+v_en_49bf9d2980419ae6	Side plank, left.
+v_en_b1164b8cdcc31b75	Side plank, right.
+v_en_5a22ab5eff9b097f	Sit back on your heels, arms long, forehead down.
+v_en_103d19e50076d54a	Sit tall for a moment and take a breath.
+v_en_00f9ad7d53d32476	Sit tall on a chair.
+v_en_81717abca858494a	Slide the left arm under the right one, shoulder to the floor, and breathe into the upper back.
+v_en_6131de6701fbcf1d	Slide your head straight back, as if making a double chin.
+v_en_18d53d6efab2b4cc	Slow and small, stop if it tingles more.
+v_en_2b82f2c5bf01e016	Slowly.
+v_en_6423480693712b1a	Smooth, never into pain.
+v_en_3fa8c4d3b11946b4	Soft shoulders, long spine.
+v_en_e0066e1be2621df2	Sphinx.
+v_en_384459b695b41537	Stand up and walk.
+v_en_4c1556afcc4b4576	Standing back bend.
+v_en_29f7178e1cc4d983	Step out of the reading room for a moment.
+v_en_4d4f0bdc68f3f2e7	Step the left leg back, tuck your tailbone under and push the hip forward.
+v_en_9bd7cd84b80d497d	Straighten and look up, bend and look down.
+v_en_c8185d845eb64a41	Straighten the left knee while you look up, bend it while you look down.
+v_en_d9ef5bb3c05564b3	Study mode is on.
+v_en_370d1033b31ba996	Tailbone under, hip forward.
+v_en_f9b933f577b5ebe2	The back stays still.
+v_en_39a3d2f44a3a0613	Then the right side.
+v_en_6d6200ef84f446cd	Thread the needle, left.
+v_en_9f31ac874c78bc94	Thread the needle, right.
+v_en_69f0b7fb09ca54e2	Time for a quiet seated reset, 45 seconds.
+v_en_fb959fccfab194ff	Time for a spine mobility flow on the floor, 3 minutes.
+v_en_5cc6f86183bc3a4c	Time for an eye and posture reset, 30 seconds.
+v_en_25666c38a262c442	Time for an upper back opener, 2 minutes.
+v_en_57f6e3bf117ae22b	Time for back stability work, 3 minutes.
+v_en_f2e1366d41e23916	Time for gentle nerve glides, 2 minutes.
+v_en_538134f2def873fa	Time for slow breathing, lying down, 3 minutes.
+v_en_c225ac06e7f33341	Time for standing up and moving, 2 minutes.
+v_en_8d6cc2c901d15292	Turn your chest to the left and hold the backrest for three breaths.
+v_en_bd62f89273c82828	Unclench the jaw, drop the shoulders, soften the hands.
+v_en_d78e9acd039a431b	Upright set.
+v_en_e7faa3bb97638a7f	Walk a little, get some water.
+v_en_f7c62e42a9529ab3	You keep sinking.
+v_en_d7fd299922e7a8dd	You're home, so use the floor if you like.
+v_en_c0a2d403f2087623	You've been sitting a long while.
+v_en_4548f065000e1eed	Your posture has been fading for a few minutes.

@@ -98,7 +98,9 @@ struct ProfileSheet: View {
                 .foregroundStyle(Theme.text)
             Spacer()
             Picker("Voice", selection: settings.binding(\.coachVoiceID)) {
-                Text("Automatic").tag(String?.none)
+                // Theo's own recorded voice (Posture/Sounds/Voice). The iOS voices
+                // below are for anyone who prefers one of those.
+                Text("Theo (recorded)").tag(String?.none)
                 ForEach(voices) { option in
                     Text(option.label).tag(String?.some(option.id))
                 }
@@ -115,9 +117,9 @@ struct ProfileSheet: View {
             }
             .foregroundStyle(Theme.mint)
         }
-        if !hasNaturalVoice {
+        if settings.value.coachVoiceID != nil, !hasNaturalVoice {
             let language = settings.value.coachLanguage == .de ? "German" : "English"
-            Text("Theo is using the basic iOS voice. For a natural-sounding one, download an Enhanced or Premium voice once in the Settings app: Accessibility › Spoken Content › Voices › \(language). Theo then uses it automatically.")
+            Text("This is the basic iOS voice. For a natural-sounding one, pick “Theo (recorded)” above or download an Enhanced or Premium voice once in the Settings app: Accessibility › Spoken Content › Voices › \(language).")
                 .font(.ui(13))
                 .foregroundStyle(Theme.textDim)
                 .fixedSize(horizontal: false, vertical: true)

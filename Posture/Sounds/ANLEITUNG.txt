@@ -89,15 +89,33 @@ ablegen.
 3. GESPROCHENE SÄTZE (Theo)
 ---------------------------
 
-Nur im Modus "Voice". Gesprochen von der iOS-Sprachausgabe mit der Stimme aus
-dem Profil. Zur Haltung selbst sagt Theo nie etwas, dafür gibt es nur die
-Töne oben. Diese Sätze lassen sich (noch) nicht durch Dateien ersetzen.
+Nur im Modus "Voice". Zur Haltung selbst sagt Theo nie etwas, dafür gibt es
+nur die Töne oben.
+
+Theos Stimme ist aufgenommen: Jeder Satz liegt als kleine .m4a-Datei in
+Posture\Sounds\Voice, erzeugt mit Piper (kostenlos, läuft offline auf dem PC).
+Deutsch: Stimme "Thorsten" (CC0). Englisch: Stimme "Ryan" (CC BY-NC-SA 4.0,
+also nur privat, nicht für den Verkauf). Die Dateien heißen nach einer
+Prüfsumme des Satzes, deshalb nicht umbenennen.
+
+Im Profil heißt diese Stimme "Theo (recorded)". Wer dort eine iOS-Stimme
+wählt, hört wieder die iOS-Sprachausgabe. Fehlt für einen Satz die Datei,
+spricht für diesen Text ebenfalls die iOS-Stimme.
+
+Nach dem Ändern eines gesprochenen Textes im Code die Aufnahmen neu machen
+(nur neue Sätze werden erzeugt, alte Dateien werden gelöscht):
+
+    python -m venv .venv
+    .venv\Scripts\pip install piper-tts imageio-ffmpeg
+    .venv\Scripts\python tools\voice\make_voice.py
+
+Die Liste aller Sätze steht danach in tools\voice\sentences.txt.
 
 Feste Sätze (Deutsch / Englisch):
 - Session von Hand gestartet:   "Ich bin da. Sperr ruhig dein Handy."
                                 "I'm here. Go ahead and lock your phone."
-- Session automatisch gestartet: "Posture Session gestartet."
-                                "Posture session started."
+- Session automatisch gestartet: "Lernmodus läuft."
+                                "Study mode is on."
 - Session beendet:              "Session beendet. Gut gemacht."
                                 "Session ended. Nicely done."
 - Stromsparmodus geht an:       "Stromsparmodus aktiv. Ich pausiere."

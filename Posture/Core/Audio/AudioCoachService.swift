@@ -33,10 +33,25 @@ final class AudioCoachService: NSObject {
     /// Sound files from Posture/Sounds, loaded on first use.
     @ObservationIgnored private var soundFiles: [String: AVAudioPlayer] = [:]
     @ObservationIgnored private var missingSounds: Set<String> = []
+    /// Synthesised chimes, rendered once per note pattern. The patterns are
+    /// fixed, so the sine maths does not have to run on every cue.
+    @ObservationIgnored private var chimeCache: [String: AVAudioPCMBuffer] = [:]
+    /// The delayed engine shutdown after a session ends. Kept so that a new
+    /// session, a routine read aloud or a voice preview can call it off;
+    /// otherwise it would cut that speech off mid-sentence.
+    @ObservationIgnored private var shutdownTask: Task<Void, Never>?
+    /// Theo's recorded sentences (see VoiceClips). Texts queue up like with
+    /// the iOS voice; one task plays them in order.
+    @ObservationIgnored private var clipQueue: [(urls: [URL], delay: TimeInterval)] = []
+    @ObservationIgnored private var clipTask: Task<Void, Never>?
+    @ObservationIgnored private var clipPlayer: AVAudioPlayer?
+    /// Raised by `stopClips()`, so a stopped task cannot touch a newer one.
+    @ObservationIgnored private var clipGeneration = 0
 
     // MARK: Lifecycle
 
     func beginSession() throws {
+        cancelPendingShutdown(stopEngineNow: false)
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         // The silent keep-alive needs no low latency. A long buffer means the
@@ -67,15 +82,39 @@ final class AudioCoachService: NSObject {
         observers.forEach { NotificationCenter.default.removeObserver($0) }
         observers = []
         // Let the closing chime ring out before the engine goes down.
-        Task { @MainActor [weak self] in
+        shutdownTask?.cancel()
+        shutdownTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(2.5))
-            guard let self, !self.isActive else { return }
+            // Let Theo finish his last recorded sentence ("Gut gemacht.").
+            var waited = 0.0
+            while waited < 6, !Task.isCancelled, let self, self.clipTask != nil {
+                try? await Task.sleep(for: .seconds(0.25))
+                waited += 0.25
+            }
+            guard !Task.isCancelled, let self, !self.isActive else { return }
+            self.shutdownTask = nil
             self.speech.stopSpeaking(at: .word)
-            self.keepAlive.stop()
-            self.tones.stop()
-            self.engine.stop()
+            self.stopClips()
+            self.stopEngine()
             try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         }
+    }
+
+    private func stopEngine() {
+        keepAlive.stop()
+        tones.stop()
+        engine.stop()
+    }
+
+    /// Calls off the delayed shutdown from `endSession()`. When speech starts
+    /// without a session, the engine is not needed any more and stops right
+    /// away (the silent keep-alive would otherwise run on for nothing); the
+    /// audio session is then let go by `stopSpeaking()` as usual.
+    private func cancelPendingShutdown(stopEngineNow: Bool) {
+        guard let task = shutdownTask else { return }
+        task.cancel()
+        shutdownTask = nil
+        if stopEngineNow, !isActive { stopEngine() }
     }
 
     private func wireIfNeeded() {
@@ -189,6 +228,12 @@ final class AudioCoachService: NSObject {
     }
 
     private func say(_ text: String, delay: TimeInterval = 0.45) {
+        // "Automatic" in the profile is Theo's recorded voice. A voice picked
+        // there, or a text without recordings, goes to the iOS voice.
+        if voiceID == nil, let clips = VoiceClips.files(for: text, language: language) {
+            playClips(clips, delay: delay)
+            return
+        }
         let voice = currentVoice()
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = voice
@@ -199,6 +244,41 @@ final class AudioCoachService: NSObject {
         utterance.volume = 0.9
         utterance.preUtteranceDelay = delay
         speech.speak(utterance)
+    }
+
+    /// Plays the sentences of one text in a row, after whatever is still
+    /// playing. The files are already at an even loudness.
+    private func playClips(_ urls: [URL], delay: TimeInterval) {
+        clipQueue.append((urls, delay))
+        guard clipTask == nil else { return }
+        let generation = clipGeneration
+        clipTask = Task { @MainActor [weak self] in
+            while let self, self.clipGeneration == generation, !self.clipQueue.isEmpty {
+                let text = self.clipQueue.removeFirst()
+                try? await Task.sleep(for: .seconds(text.delay))
+                for (index, url) in text.urls.enumerated() {
+                    guard self.clipGeneration == generation,
+                          let player = try? AVAudioPlayer(contentsOf: url) else { break }
+                    self.clipPlayer = player
+                    player.play()
+                    // A short breath between two sentences.
+                    let pause = index < text.urls.count - 1 ? 0.2 : 0
+                    try? await Task.sleep(for: .seconds(player.duration + pause))
+                }
+            }
+            guard let self, self.clipGeneration == generation else { return }
+            self.clipPlayer = nil
+            self.clipTask = nil
+        }
+    }
+
+    private func stopClips() {
+        clipGeneration += 1
+        clipQueue.removeAll()
+        clipTask?.cancel()
+        clipTask = nil
+        clipPlayer?.stop()
+        clipPlayer = nil
     }
 
     /// Looking through the installed voices is not free, so the result is
@@ -215,6 +295,7 @@ final class AudioCoachService: NSObject {
     /// Speaks a sample line with the current voice, for the profile screen.
     /// Works without a running session.
     func preview() {
+        cancelPendingShutdown(stopEngineNow: true)
         if !isActive {
             // Without the playback category the ring switch would mute it.
             let session = AVAudioSession.sharedInstance()
@@ -224,6 +305,7 @@ final class AudioCoachService: NSObject {
         // A voice may have been downloaded since the last look.
         voiceKey = nil
         speech.stopSpeaking(at: .immediate)
+        stopClips()
         say(CoachScript.preview(language: language), delay: 0)
     }
 
@@ -232,12 +314,14 @@ final class AudioCoachService: NSObject {
     /// voice mode.
     func speak(_ text: String) {
         guard mode == .voice else { return }
+        cancelPendingShutdown(stopEngineNow: true)
         if !isActive {
             let session = AVAudioSession.sharedInstance()
             try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try? session.setActive(true)
         }
         speech.stopSpeaking(at: .immediate)
+        stopClips()
         say(text, delay: 0.15)
     }
 
@@ -245,6 +329,7 @@ final class AudioCoachService: NSObject {
     /// session again so nothing stays powered for nothing.
     func stopSpeaking() {
         speech.stopSpeaking(at: .immediate)
+        stopClips()
         if !isActive {
             try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         }
@@ -326,10 +411,21 @@ final class AudioCoachService: NSObject {
         case .checkIn:
             notes = [Note(523.25, 0, 0.6), Note(392, 0.25, 0.6), Note(523.25, 0.5, 1.0)]
         }
-        if let buffer = render(notes, gain: gain) {
+        if let buffer = chimeBuffer(notes, gain: gain) {
             tones.scheduleBuffer(buffer, at: nil, options: [])
             if !tones.isPlaying { tones.play() }
         }
+    }
+
+    /// The rendered chime for a note pattern, from the cache when it was
+    /// played before. A scheduled buffer is only read, so one buffer can be
+    /// queued again and again (also while it is still playing).
+    private func chimeBuffer(_ notes: [Note], gain: Double) -> AVAudioPCMBuffer? {
+        let key = notes.map { "\($0.frequency)@\($0.at)+\($0.length)" }.joined(separator: ",") + "|\(gain)"
+        if let cached = chimeCache[key] { return cached }
+        guard let buffer = render(notes, gain: gain) else { return nil }
+        chimeCache[key] = buffer
+        return buffer
     }
 
     /// Soft bell: a sine with two quiet overtones and an exponential decay.
