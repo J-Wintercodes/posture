@@ -50,11 +50,11 @@ struct MainShell: View {
     /// The evening whose screen was already shown, so it comes once a night.
     @AppStorage("eveningShownKey") private var eveningShownKey = ""
 
-    /// From 20:00 the first time the app opens, once per evening, when
+    /// From 22:00 the first time the app opens, once per evening, when
     /// nothing else covers the screen.
     private func maybeShowEvening() {
         let hour = Calendar.current.component(.hour, from: Date())
-        guard hour >= 20 || hour < 3 else { return }
+        guard hour >= 22 || hour < 3 else { return }
         let key = app.tonightKey
         guard eveningShownKey != key,
               !app.showLive, app.painPrompt == nil, app.activeRoutine == nil
