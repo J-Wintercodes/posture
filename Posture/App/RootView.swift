@@ -44,7 +44,24 @@ enum AppTab: String, CaseIterable, Identifiable {
 
 struct MainShell: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.scenePhase) private var scenePhase
     @State private var tab: AppTab = .home
+    @State private var showEvening = false
+    /// The evening whose screen was already shown, so it comes once a night.
+    @AppStorage("eveningShownKey") private var eveningShownKey = ""
+
+    /// From 22:00 the first time the app opens, once per evening, when
+    /// nothing else covers the screen.
+    private func maybeShowEvening() {
+        let hour = Calendar.current.component(.hour, from: Date())
+        guard hour >= 22 || hour < 3 else { return }
+        let key = app.tonightKey
+        guard eveningShownKey != key,
+              !app.showLive, app.painPrompt == nil, app.activeRoutine == nil
+        else { return }
+        eveningShownKey = key
+        showEvening = true
+    }
 
     var body: some View {
         @Bindable var app = app
@@ -66,6 +83,23 @@ struct MainShell: View {
             LiveSessionView()
                 .environment(app)
                 .preferredColorScheme(.dark)
+        }
+        .fullScreenCover(isPresented: $showEvening) {
+            EveningView(
+                onPain: {
+                    showEvening = false
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 500_000_000)
+                        app.askAboutPain()
+                    }
+                },
+                onClose: { showEvening = false }
+            )
+            .preferredColorScheme(.dark)
+        }
+        .onAppear { maybeShowEvening() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { maybeShowEvening() }
         }
         .sheet(item: shellRoutine) { routine in
             RoutinePlayerView(routine: routine)

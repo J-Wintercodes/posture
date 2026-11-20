@@ -87,6 +87,50 @@ struct PillButton: View {
     }
 }
 
+/// The calm full-screen goodnight: one soft question, one way out.
+struct EveningView: View {
+    var onPain: () -> Void
+    var onClose: () -> Void
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: 0x14172B), Theme.bg],
+                startPoint: .top, endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 18) {
+                Spacer()
+                Image(systemName: "moon.stars.fill")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundStyle(Theme.text.opacity(0.9))
+                SectionLabel("Good night")
+                Text("How does your body feel after today?")
+                    .font(.system(size: 30, weight: .regular, design: .serif))
+                    .foregroundStyle(Theme.text)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
+                Text("A quick answer helps the app learn what your back needs.")
+                    .font(.ui(15, .regular))
+                    .foregroundStyle(Theme.textDim)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 36)
+                Spacer()
+                VStack(spacing: 10) {
+                    PillButton(title: "Rate my pain", icon: "heart.fill", action: onPain)
+                    Button("Not tonight", action: onClose)
+                        .font(.ui(15, .medium))
+                        .foregroundStyle(Theme.textDim)
+                        .padding(.vertical, 8)
+                }
+                .padding(.horizontal, 26)
+                .padding(.bottom, 24)
+            }
+        }
+    }
+}
+
 struct PressableStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

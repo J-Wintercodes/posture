@@ -37,7 +37,13 @@ enum Notifier {
                 title: "\(PainScale.label(level, language: language)) (\(level))",
                 options: []
             )
-        }
+        } + [
+            UNNotificationAction(
+                identifier: "\(painActionPrefix)open",
+                title: language == .de ? "Skala öffnen" : "Open scale",
+                options: [.foreground]
+            )
+        ]
         let category = UNNotificationCategory(
             identifier: painCategory,
             actions: actions,
@@ -102,6 +108,11 @@ enum Notifier {
         if let painDay {
             info[painDayKey] = painDay
             content.categoryIdentifier = painCategory
+            // The bedtime question is one calm thread, quiet enough not to
+            // wake anyone, but still shown on the lock screen right away.
+            content.threadIdentifier = "pain-check"
+            content.interruptionLevel = .active
+            content.relevanceScore = 0.9
         }
         if !info.isEmpty { content.userInfo = info }
         return content

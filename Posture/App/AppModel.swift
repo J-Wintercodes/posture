@@ -263,7 +263,10 @@ final class AppModel {
         DayKey.key(for: DayKey.eveningDay(for: Date()))
     }
 
+    /// Asks whether the day hurt. Never replaces a question already on screen,
+    /// so the evening screen and a tapped notification cannot stack up.
     func askAboutPain() {
+        guard painPrompt == nil else { return }
         painPrompt = PainPrompt(dayKey: tonightKey)
     }
 
